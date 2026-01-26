@@ -2,6 +2,7 @@
 #include "exchange/types.hpp"
 #include <deque>
 #include <map>
+#include <optional>
 #include <unordered_map>
 
 template <typename T>
@@ -19,12 +20,20 @@ concept OrderTypePolicy = requires(T t) {
 
 class MatchingEngine {
 public:
-    MatchingEngine() {}
+    MatchingEngine(InstrumentID instrument_id) : instrumentID_(instrument_id) {
+        dispatch_table_[0][0] = &MatchingEngine::match_order_<BuySide, LimitOrderPolicy>;
+        dispatch_table_[0][1] = &MatchingEngine::match_order_<BuySide, MarketOrderPolicy>;
+        dispatch_table_[1][0] = &MatchingEngine::match_order_<SellSide, LimitOrderPolicy>;
+        dispatch_table_[1][1] =
+            &MatchingEngine::match_order_<SellSide, MarketOrderPolicy>;
+    }
 
     MatchResult process_order(const OrderRequest& request);
     bool cancel_order(const ClientID, const OrderID);
     ModifyResult modify_order(const ClientID, const OrderID, const Quantity new_qty,
                               const Price new_price);
+
+    std::optional<const Order> get_order(const OrderID order_id) const;
 
     void reset();
 
@@ -46,7 +55,7 @@ private:
     [[nodiscard]] TradeID get_current_trade_id() const noexcept { return trade_counter_; }
 
     void add_to_book_(const OrderRequest& request, Quantity remaining_quantity,
-                      OrderStatus status);
+                      Price best_price, OrderStatus status);
 
     template <typename Book>
     bool remove_from_book_(const OrderID order_id, const Price price, Book& book);
@@ -67,11 +76,11 @@ private:
         constexpr static bool is_buyer() { return false; }
     };
 
-    struct LimitOrderPolity {
+    struct LimitOrderPolicy {
         constexpr static bool needs_price_check() { return true; }
 
         static OrderStatus finalize(MatchingEngine& eng, const OrderRequest& request,
-                                    Quantity remaining_quantity) {
+                                    Quantity remaining_quantity, Price best_price) {
             OrderStatus status{OrderStatus::NEW};
             if (remaining_quantity.is_zero()) {
                 status = OrderStatus::FILLED;
@@ -80,7 +89,7 @@ private:
                     status = OrderStatus::PARTIALLY_FILLED;
                 }
 
-                eng.add_to_book_(request, remaining_quantity, status);
+                eng.add_to_book_(request, remaining_quantity, best_price, status);
             }
 
             return status;
@@ -91,7 +100,7 @@ private:
         constexpr static bool needs_price_check() { return false; }
 
         static OrderStatus finalize(MatchingEngine&, const OrderRequest& request,
-                                    Quantity remaining_quantity) {
+                                    Quantity remaining_quantity, Price) {
             OrderStatus status{OrderStatus::NEW};
             if (remaining_quantity.is_zero()) {
                 status = OrderStatus::FILLED;
@@ -112,8 +121,6 @@ template <typename SidePolicy, typename OrderTypePolicy>
 MatchResult MatchingEngine::match_order_(const OrderRequest& request) {
     std::vector<TradeEvent> trade_vec{};
     Quantity remaining_quantity = request.quantity;
-    const Quantity original_quantity = remaining_quantity;
-
     auto& book_side = SidePolicy::book(*this);
 
     Price best_price{};
@@ -136,7 +143,7 @@ MatchResult MatchingEngine::match_order_(const OrderRequest& request) {
         std::deque<Order>& queue = it->second;
         bool matched{false};
 
-        for (auto qIt{queue.begin()}; qIt != queue.end(), remaining_quantity > 0;) {
+        for (auto qIt{queue.begin()}; qIt != queue.end() && remaining_quantity > 0;) {
             if (qIt->client_id == request.client_id) {
                 ++qIt;
                 continue;
@@ -145,7 +152,7 @@ MatchResult MatchingEngine::match_order_(const OrderRequest& request) {
             matched = true;
             Quantity match_quantity = std::min(remaining_quantity, qIt->quantity);
             remaining_quantity -= match_quantity;
-            qIt->qty -= match_quantity;
+            qIt->quantity -= match_quantity;
 
             OrderID seller_order_id{}, buyer_order_id{};
             ClientID seller_id{}, buyer_id{};
@@ -188,7 +195,8 @@ MatchResult MatchingEngine::match_order_(const OrderRequest& request) {
         }
     }
 
-    OrderStatus status = OrderTypePolicy::finalize(*this, request, remaining_quantity);
+    OrderStatus status =
+        OrderTypePolicy::finalize(*this, request, remaining_quantity, best_price);
 
     return MatchResult{.order_id = get_current_order_id(),
                        .timestamp = Timestamp{0},
@@ -196,5 +204,32 @@ MatchResult MatchingEngine::match_order_(const OrderRequest& request) {
                        .accepted_price = best_price,
                        .status = status,
                        .instrument_id = instrumentID_,
-                       trade_vec};
+                       .trade_vec = trade_vec};
+}
+
+template <typename Book>
+bool MatchingEngine::remove_from_book_(OrderID order_id, Price price, Book& book_side) {
+    auto it = book_side.find(price);
+    if (it == book_side.end()) {
+        return false;
+    }
+
+    std::deque<Order>& queue = it->second;
+
+    for (auto qIt = queue.begin(); qIt != queue.end(); ++qIt) {
+        if (qIt->order_id != order_id) {
+            continue;
+        }
+
+        book_.registry.erase(order_id);
+        queue.erase(qIt);
+
+        if (queue.empty()) {
+            book_side.erase(it);
+        }
+
+        return true;
+    }
+
+    return false;
 }

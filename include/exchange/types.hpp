@@ -30,16 +30,6 @@ enum class TimeInForce : std::uint8_t {
 
 enum class ModifyStatus : std::uint8_t { ACCEPTED = 0, INVALID };
 
-struct MatchResult {
-    OrderID order_id;
-    Timestamp timestamp;
-    Quantity remaining_quantity;
-    Price accepted_price;
-    OrderStatus status;
-    InstrumentID instrument_id;
-    std::vector<TradeEvent> trade_vec;
-};
-
 struct TradeEvent {
     TradeID trade_id;
     OrderID buyer_order_id;
@@ -52,18 +42,28 @@ struct TradeEvent {
     InstrumentID instrument_id;
 };
 
+struct MatchResult {
+    OrderID order_id;
+    Timestamp timestamp;
+    Quantity remaining_quantity;
+    Price accepted_price;
+    OrderStatus status;
+    InstrumentID instrument_id;
+    std::vector<TradeEvent> trade_vec;
+};
+
 struct Order {
-    const OrderID order_id;           // 8 bytes
-    const ClientID client_id;         // 8 bytes
-    Quantity quantity;                // 8 bytes
-    const Price price;                // 8 bytes
-    const Timestamp good_till;        // 8 bytes
-    const Timestamp timestamp;        // 8 bytes
-    const InstrumentID instrument_id; // 4 bytes
-    const TimeInForce time_in_force;  // 1 byte
-    const OrderSide side;             // 1 byte
-    const OrderType type;             // 1 byte
-    OrderStatus status;               // 1 byte
+    OrderID order_id;
+    ClientID client_id;
+    Quantity quantity;
+    Price price;
+    Timestamp good_till;
+    Timestamp timestamp;
+    InstrumentID instrument_id;
+    TimeInForce time_in_force;
+    OrderSide side;
+    OrderType type;
+    OrderStatus status;
 };
 
 struct ModifyResult {
@@ -82,10 +82,11 @@ struct OrderRequest {
     ClientID client_id;
     Quantity quantity;
     Price price;
-    InstrumentID InstrumentID;
+    InstrumentID instrumentID;
     OrderSide side;
     OrderType type;
     TimeInForce time_in_force;
+    Timestamp good_till;
 };
 
 struct OrderBook {
