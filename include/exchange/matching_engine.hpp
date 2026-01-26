@@ -28,12 +28,13 @@ public:
             &MatchingEngine::match_order_<SellSide, MarketOrderPolicy>;
     }
 
-    MatchResult process_order(const OrderRequest& request);
-    bool cancel_order(const ClientID, const OrderID);
-    ModifyResult modify_order(const ClientID, const OrderID, const Quantity new_qty,
-                              const Price new_price);
+    [[nodiscard]] MatchResult process_order(const OrderRequest& request);
+    [[nodiscard]] bool cancel_order(const ClientID, const OrderID);
+    [[nodiscard]] ModifyResult modify_order(const ClientID, const OrderID,
+                                            const Quantity new_qty,
+                                            const Price new_price);
 
-    std::optional<const Order> get_order(const OrderID order_id) const;
+    [[nodiscard]] std::optional<const Order> get_order(const OrderID order_id) const;
 
     void reset();
 
@@ -57,8 +58,8 @@ private:
     void add_to_book_(const OrderRequest& request, Quantity remaining_quantity,
                       Price best_price, OrderStatus status);
 
-    template <typename Book>
-    bool remove_from_book_(const OrderID order_id, const Price price, Book& book);
+    template <typename Book> [[nodiscard]] bool
+    remove_from_book_(const OrderID order_id, const Price price, Book& book);
 
     struct BuySide {
         constexpr static auto& book(MatchingEngine& eng) { return eng.book_.bids; }
