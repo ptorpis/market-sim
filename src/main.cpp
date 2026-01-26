@@ -24,5 +24,7 @@ int main() {
 
     std::puts(std::format("Price={}", price).c_str());
 
+    std::cout << static_cast<std::uint64_t>(timestamp) << std::endl;
+
     return 0;
 }

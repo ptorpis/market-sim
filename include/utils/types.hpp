@@ -116,10 +116,14 @@ struct std::formatter<Tag> : std::formatter<typename Tag::value_type> {
 };
 
 template <typename Strong> struct strong_hash {
-    size_t operator()(const Strong& v) const noexcept {
+    std::size_t operator()(const Strong& v) const noexcept {
         return std::hash<typename Strong::value_type>{}(v.value());
     }
 };
+
+/*
+    Define strong types using the underlying and the tag (CRTP)
+*/
 
 struct Timestamp : StrongType<std::uint64_t, Timestamp> {
     using StrongType::StrongType;
@@ -130,5 +134,21 @@ struct Price : StrongType<std::uint64_t, Price> {
 };
 
 struct Quantity : StrongType<std::uint64_t, Quantity> {
+    using StrongType::StrongType;
+};
+
+struct OrderID : StrongType<std::uint64_t, OrderID> {
+    using StrongType::StrongType;
+};
+
+struct InstrumentID : StrongType<std::uint32_t, InstrumentID> {
+    using StrongType::StrongType;
+};
+
+struct TradeID : StrongType<std::uint64_t, TradeID> {
+    using StrongType::StrongType;
+};
+
+struct ClientID : StrongType<std::uint64_t, ClientID> {
     using StrongType::StrongType;
 };
