@@ -14,12 +14,12 @@ int main() {
                                        .drift = 0.0,
                                        .volatility = 0.1,
                                        .tick_size = Timestamp{1000}},
-                       /*seed=*/42);
+                       /*seed*/ 42);
 
     // Noise traders provide random liquidity
     NoiseTraderConfig noise_config{.instrument = InstrumentID{1},
                                    .fair_value = Price{1000},
-                                   .spread = Price{50},
+                                   .spread = Price{5},
                                    .min_quantity = Quantity{10},
                                    .max_quantity = Quantity{100},
                                    .min_interval = Timestamp{50},

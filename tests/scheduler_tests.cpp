@@ -12,22 +12,17 @@ protected:
     std::unique_ptr<Scheduler> scheduler;
 
     OrderSubmitted make_order_event(Timestamp ts, ClientID agent) {
-        return OrderSubmitted{
-            .timestamp = ts,
-            .agent_id = agent,
-            .instrument_id = InstrumentID{1},
-            .quantity = Quantity{100},
-            .price = Price{1000},
-            .side = OrderSide::BUY,
-            .type = OrderType::LIMIT
-        };
+        return OrderSubmitted{.timestamp = ts,
+                              .agent_id = agent,
+                              .instrument_id = InstrumentID{1},
+                              .quantity = Quantity{100},
+                              .price = Price{1000},
+                              .side = OrderSide::BUY,
+                              .type = OrderType::LIMIT};
     }
 
     AgentWakeup make_wakeup_event(Timestamp ts, ClientID agent) {
-        return AgentWakeup{
-            .timestamp = ts,
-            .agent_id = agent
-        };
+        return AgentWakeup{.timestamp = ts, .agent_id = agent};
     }
 };
 
@@ -84,11 +79,13 @@ TEST_F(SchedulerTest, EventsOrderedByTimestamp) {
 
 TEST_F(SchedulerTest, EarlierTimestampAlwaysFirst) {
     for (int i = 10; i >= 1; --i) {
-        scheduler->schedule(make_order_event(Timestamp{static_cast<uint64_t>(i * 100)}, ClientID{1}));
+        scheduler->schedule(
+            make_order_event(Timestamp{static_cast<uint64_t>(i * 100)}, ClientID{1}));
     }
 
     for (int i = 1; i <= 10; ++i) {
-        EXPECT_EQ(get_timestamp(scheduler->pop()), Timestamp{static_cast<uint64_t>(i * 100)});
+        EXPECT_EQ(get_timestamp(scheduler->pop()),
+                  Timestamp{static_cast<uint64_t>(i * 100)});
     }
 }
 
@@ -112,12 +109,14 @@ TEST_F(SchedulerTest, SameTimestampOrderedBySequence) {
 
 TEST_F(SchedulerTest, FIFOWithinSameTimestamp) {
     for (int i = 1; i <= 100; ++i) {
-        scheduler->schedule(make_order_event(Timestamp{500}, ClientID{static_cast<uint64_t>(i)}));
+        scheduler->schedule(
+            make_order_event(Timestamp{500}, ClientID{static_cast<uint64_t>(i)}));
     }
 
     for (int i = 1; i <= 100; ++i) {
         auto event = scheduler->pop();
-        EXPECT_EQ(std::get<OrderSubmitted>(event).agent_id, ClientID{static_cast<uint64_t>(i)});
+        EXPECT_EQ(std::get<OrderSubmitted>(event).agent_id,
+                  ClientID{static_cast<uint64_t>(i)});
     }
 }
 
