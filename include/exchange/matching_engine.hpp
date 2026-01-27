@@ -1,4 +1,5 @@
 #pragma once
+
 #include "exchange/types.hpp"
 #include <deque>
 #include <map>
@@ -62,7 +63,7 @@ private:
     remove_from_book_(const OrderID order_id, const Price price, Book& book);
 
     struct BuySide {
-        constexpr static auto& book(MatchingEngine& eng) { return eng.book_.bids; }
+        constexpr static auto& book(MatchingEngine& eng) { return eng.book_.asks; }
         static bool price_passes(Price order_price, Price best_price) {
             return order_price >= best_price;
         }
@@ -70,7 +71,7 @@ private:
     };
 
     struct SellSide {
-        constexpr static auto& book(MatchingEngine& eng) { return eng.book_.asks; }
+        constexpr static auto& book(MatchingEngine& eng) { return eng.book_.bids; }
         static bool price_passes(Price order_price, Price best_price) {
             return order_price <= best_price;
         }
@@ -135,7 +136,7 @@ MatchResult MatchingEngine::match_order_(const OrderRequest& request) {
         auto it = book_side.begin();
         best_price = it->first;
 
-        if constexpr (OrderTypePolicy::needs_price_check) {
+        if constexpr (OrderTypePolicy::needs_price_check()) {
             if (!SidePolicy::price_passes(request.price, best_price)) {
                 break;
             }

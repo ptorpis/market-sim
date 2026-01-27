@@ -5,6 +5,9 @@
 #include <print>
 #include <unordered_map>
 
+#include "exchange/matching_engine.hpp"
+#include "exchange/types.hpp"
+
 int main() {
     Timestamp timestamp{100000};
     std::cout << timestamp << std::endl;
@@ -20,11 +23,25 @@ int main() {
     std::unordered_map<Timestamp, int, strong_hash<Timestamp>>{};
 
     Price price = Price{100};
-    Quantity qty = Quantity{200};
 
     std::puts(std::format("Price={}", price).c_str());
 
     std::cout << static_cast<std::uint64_t>(timestamp) << std::endl;
+
+    OrderRequest req = OrderRequest{.client_id = ClientID{1},
+                                    .quantity = Quantity{100},
+                                    .price = Price{1000},
+                                    .instrumentID = InstrumentID{1},
+                                    .side = OrderSide::BUY,
+                                    .type = OrderType::LIMIT,
+                                    .time_in_force = TimeInForce::GOOD_TILL_CANCELLED,
+                                    .good_till = Timestamp{0}};
+
+    MatchingEngine engine{InstrumentID{1}};
+
+    auto res = engine.process_order(req);
+
+    std::cout << "remaining:" << res.remaining_quantity << std::endl;
 
     return 0;
 }

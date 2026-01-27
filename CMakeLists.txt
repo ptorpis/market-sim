@@ -13,7 +13,7 @@ option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
 option(ENABLE_VALGRIND "Enable Valgrind for tests (cannot combine with ASAN/UBSAN)" OFF)
 option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
-option(BUILD_TESTS "Build tests" OFF)
+option(BUILD_TESTS "Build tests" ON)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     add_compile_options(
@@ -91,11 +91,12 @@ if(BUILD_TESTS)
 
     if(GTest_FOUND)
         add_executable(all_tests
-            # tests/exampleTests.cpp
+            tests/matching_engine_tests.cpp
         )
 
         target_link_libraries(all_tests
-            PRIVATE GTest::gtest
+            PRIVATE SimCore
+            GTest::gtest
             GTest::gtest_main
         )
 

@@ -7,12 +7,12 @@ MatchResult MatchingEngine::process_order(const OrderRequest& request) {
 }
 
 void MatchingEngine::add_to_book_(const OrderRequest& request,
-                                  Quantity remaining_quantity, Price best_price,
+                                  Quantity remaining_quantity, Price /*best_price*/,
                                   OrderStatus status) {
     Order order{.order_id = get_current_order_id(),
                 .client_id = request.client_id,
                 .quantity = remaining_quantity,
-                .price = best_price,
+                .price = request.price,
                 .good_till = request.good_till,
                 .timestamp = Timestamp{0},
                 .instrument_id = instrumentID_,
@@ -22,11 +22,11 @@ void MatchingEngine::add_to_book_(const OrderRequest& request,
                 .status = status};
 
     if (request.side == OrderSide::BUY) {
-        auto& queue = book_.bids[best_price];
+        auto& queue = book_.bids[request.price];
         queue.emplace_back(std::move(order));
         book_.registry[queue.back().order_id] = &queue.back();
     } else {
-        auto& queue = book_.asks[best_price];
+        auto& queue = book_.asks[request.price];
         queue.emplace_back(std::move(order));
         book_.registry[queue.back().order_id] = &queue.back();
     }
