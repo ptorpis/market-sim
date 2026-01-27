@@ -13,7 +13,6 @@ int main() {
     sim.set_fair_price(FairPriceConfig{.initial_price = Price{1000},
                                        .drift = 0.0,
                                        .volatility = 0.1,
-                                       .observation_noise = 5.0,
                                        .tick_size = Timestamp{1000}},
                        /*seed=*/42);
 
@@ -41,7 +40,8 @@ int main() {
                                 .max_position = Quantity{500}};
 
     sim.add_agent<MarketMaker>(ClientID{10}, mm_config, /*seed=*/999);
-    sim.scheduler().schedule(AgentWakeup{.timestamp = Timestamp{5}, .agent_id = ClientID{10}});
+    sim.scheduler().schedule(
+        AgentWakeup{.timestamp = Timestamp{5}, .agent_id = ClientID{10}});
 
     // Informed trader observes fair price and trades on edge
     InformedTraderConfig it_config{.instrument = InstrumentID{1},
@@ -49,10 +49,12 @@ int main() {
                                    .max_quantity = Quantity{80},
                                    .min_interval = Timestamp{100},
                                    .max_interval = Timestamp{500},
-                                   .min_edge = Price{3}};
+                                   .min_edge = Price{3},
+                                   .observation_noise = 5.0};
 
     sim.add_agent<InformedTrader>(ClientID{20}, it_config, /*seed=*/777);
-    sim.scheduler().schedule(AgentWakeup{.timestamp = Timestamp{50}, .agent_id = ClientID{20}});
+    sim.scheduler().schedule(
+        AgentWakeup{.timestamp = Timestamp{50}, .agent_id = ClientID{20}});
 
     // Seed order book with initial liquidity
     sim.scheduler().schedule(OrderSubmitted{.timestamp = Timestamp{0},
@@ -76,13 +78,13 @@ int main() {
     sim.print_book();
 
     std::cout << "\nRunning simulation...\n";
-    sim.run_until(Timestamp{10000});
+    sim.run_until(Timestamp{1000000});
     std::cout << "Simulation complete. Time: " << sim.now() << "\n\n";
 
     std::cout << "Final order book:\n";
     sim.print_book();
 
-    Price mark_price = sim.observe_fair_price(0);
+    Price mark_price = sim.fair_price();
     std::cout << "\nMark price (fair value): " << mark_price << "\n\n";
     sim.print_pnl(mark_price);
 

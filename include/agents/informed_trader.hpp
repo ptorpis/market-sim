@@ -2,6 +2,7 @@
 
 #include "simulation/agent.hpp"
 
+#include <cmath>
 #include <random>
 
 struct InformedTraderConfig {
@@ -11,6 +12,7 @@ struct InformedTraderConfig {
     Timestamp min_interval;
     Timestamp max_interval;
     Price min_edge;
+    double observation_noise;
 };
 
 /**
@@ -21,10 +23,10 @@ struct InformedTraderConfig {
 class InformedTrader : public Agent {
 public:
     InformedTrader(ClientID id, InformedTraderConfig config, std::uint64_t seed)
-        : Agent(id), config_(config), rng_(seed), observation_seed_(seed) {}
+        : Agent(id), config_(config), rng_(seed) {}
 
     void on_wakeup(AgentContext& ctx) override {
-        Price observed = ctx.observe_fair_price(observation_seed_);
+        Price observed = observe_price(ctx);
         const auto& book = ctx.get_order_book(config_.instrument);
 
         if (!book.asks.empty()) {
@@ -51,7 +53,17 @@ public:
 private:
     InformedTraderConfig config_;
     std::mt19937_64 rng_;
-    std::uint64_t observation_seed_;
+
+    Price observe_price(AgentContext& ctx) {
+        Price true_price = ctx.fair_price();
+        if (config_.observation_noise <= 0.0) {
+            return true_price;
+        }
+
+        std::normal_distribution<double> noise_dist(0.0, config_.observation_noise);
+        double noisy = static_cast<double>(true_price.value()) + noise_dist(rng_);
+        return Price{static_cast<std::uint64_t>(std::max(1.0, std::round(noisy)))};
+    }
 
     Quantity random_quantity() {
         std::uniform_int_distribution<std::uint64_t> dist(config_.min_quantity.value(),

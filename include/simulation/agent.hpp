@@ -24,7 +24,7 @@ public:
 
     virtual const OrderBook& get_order_book(InstrumentID instrument) const = 0;
 
-    [[nodiscard]] virtual Price observe_fair_price(std::uint64_t agent_seed) const = 0;
+    [[nodiscard]] virtual Price fair_price() const = 0;
 
     [[nodiscard]] virtual Timestamp now() const = 0;
 };

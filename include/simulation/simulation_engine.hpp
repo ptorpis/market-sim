@@ -130,11 +130,11 @@ public:
 
     [[nodiscard]] Timestamp now() const override { return scheduler_.now(); }
 
-    [[nodiscard]] Price observe_fair_price(std::uint64_t agent_seed) const override {
+    [[nodiscard]] Price fair_price() const override {
         if (!fair_price_.has_value()) {
             return Price{0};
         }
-        return fair_price_->observe(agent_seed);
+        return fair_price_->true_price();
     }
 
     Scheduler& scheduler() { return scheduler_; }
