@@ -152,3 +152,7 @@ struct TradeID : StrongType<std::uint64_t, TradeID> {
 struct ClientID : StrongType<std::uint64_t, ClientID> {
     using StrongType::StrongType;
 };
+
+struct EventSequenceNumber : StrongType<std::uint64_t, EventSequenceNumber> {
+    using StrongType::StrongType;
+};

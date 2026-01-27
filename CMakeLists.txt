@@ -91,6 +91,7 @@ if(BUILD_TESTS)
     if(GTest_FOUND)
         add_executable(all_tests
             tests/matching_engine_tests.cpp
+            tests/scheduler_tests.cpp
         )
 
         target_link_libraries(all_tests

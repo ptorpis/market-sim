@@ -7,7 +7,7 @@
 
 struct ScheduledEvent {
     Event event;
-    std::uint64_t sequence;
+    EventSequenceNumber sequence;
 };
 
 struct ScheduledEventComparator {
@@ -26,7 +26,7 @@ class Scheduler {
 public:
     void schedule(Event event) {
         queue_.push(
-            ScheduledEvent{.event = std::move(event), .sequence = next_sequence_++});
+            ScheduledEvent{.event = std::move(event), .sequence = get_next_sequence_()});
     }
 
     [[nodiscard]] bool empty() const { return queue_.empty(); }
@@ -46,7 +46,7 @@ public:
 
     void clear() {
         queue_ = {};
-        next_sequence_ = 0;
+        next_sequence_ = EventSequenceNumber{0};
         current_time_ = Timestamp{0};
     }
 
@@ -54,6 +54,7 @@ private:
     std::priority_queue<ScheduledEvent, std::vector<ScheduledEvent>,
                         ScheduledEventComparator>
         queue_;
-    std::uint64_t next_sequence_ = 0;
+    EventSequenceNumber next_sequence_ = EventSequenceNumber{0};
+    EventSequenceNumber get_next_sequence_() noexcept { return next_sequence_++; }
     Timestamp current_time_{0};
 };
