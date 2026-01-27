@@ -1,33 +1,23 @@
 # AGENTS.md - AI Agent Guide for Market Simulator
-
 This document helps AI agents understand the codebase structure, conventions, and design patterns used in this project.
-
 ## Project Overview
-
 A discrete-time, event-driven market simulation framework in C++23. Simulates financial market microstructure with agents, order books, and a matching engine.
-
 ## Architecture
-
 ### Core Components
-
 1. **SimulationEngine** (`include/simulation/simulation_engine.hpp`)
    - Main orchestrator implementing `AgentContext` interface
    - Manages agents, matching engines, event scheduler
    - Dispatches events via visitor pattern
-
 2. **Scheduler** (`include/simulation/scheduler.hpp`)
    - Priority queue ordering events by (timestamp, sequence_number)
    - Maintains simulation time
-
 3. **MatchingEngine** (`include/exchange/matching_engine.hpp`)
    - Per-instrument order book management
    - Uses dispatch table + policy-based design for order matching
    - Supports limit and market orders
-
 4. **Agent** (`include/agents/agent.hpp`)
    - Abstract base class for trading agents
    - Receives callbacks via `AgentContext` interface
-
 ### Data Flow
 ```
 Agent → AgentContext → Scheduler → Event queued
@@ -74,62 +64,44 @@ using ClientID = StrongType<std::uint64_t, struct ClientIDTag>;
 - Use the same type and minimize casts when doing calculations
 
 ## Build System
-
 ### Quick Commands
-
 ```bash
 # Build and test all variants
 ./run_all.sh
-
 # Manual build
 cmake -S . -B build/debug
 cmake --build build/debug
 ctest --test-dir build/debug
 ```
-
 ### Build Variants
-
 | Variant | Purpose | Flags |
 |---------|---------|-------|
 | `debug` | Development | `-g -O0` |
 | `asan` | Memory safety | AddressSanitizer + UBSan |
 | `valgrind` | Memory checking | Valgrind integration |
-
 ### Compiler Requirements
-
 - C++23 standard
 - Strict warnings: Always keep warnings on, treat warnings as errors, see CMakeLists.txt for all the warnings enabled
-
 ## Testing
-
 Uses Google Test framework. Tests located in `tests/`:
-
 - `matching_engine_tests.cpp` - Order matching logic
 - `scheduler_tests.cpp` - Event scheduling
 - `simulation_engine_tests.cpp` - Integration tests
-
 ### Running Tests
-
 ```bash
 ctest --test-dir build/debug --output-on-failure
 ```
-
 ## Adding New Code
-
 ### Adding a New Agent
-
 1. Create header in `include/agents/my_agent.hpp`
 2. Extend `Agent` class
 3. Implement required callbacks:
-
 ```cpp
 #pragma once
 #include "agent.hpp"
-
 struct MyAgentConfig {
     // Configuration parameters
 };
-
 class MyAgent : public Agent {
 public:
     explicit MyAgent(ClientID id, MyAgentConfig config)
@@ -157,16 +129,6 @@ private:
 1. Define event struct in `include/simulation/events.hpp`
 2. Add to `Event` variant type
 3. Add `handle()` overload in `SimulationEngine`
-
-### Adding Tests
-
-```cpp
-TEST_F(TestFixtureName, DescriptiveTestName) {
-    // Arrange
-    // Act
-    // Assert using EXPECT_* or ASSERT_*
-}
-```
 
 ## Key Design Patterns
 

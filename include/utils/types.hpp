@@ -6,6 +6,20 @@
 #include <ostream>
 #include <type_traits>
 
+/**
+    Strong type that can be used with trivial types. Offers added benefit of type-safety
+    over traditional typedefs/using... declarations
+
+    To define a type:
+
+    struct Custom : StrongType<std::uint64_t, Custom> {
+        using StrongType::StrongType;
+    };
+
+    Custom var = Custom{199};
+
+    Now the compiler won't let the user mix other types unless explicitly requested
+*/
 template <typename Base, typename Tag> struct StrongType {
     static_assert(std::is_trivial_v<Base>, "The value type must be trivial");
     static_assert(std::is_trivially_copyable_v<Base>);
