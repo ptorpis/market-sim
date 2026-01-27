@@ -41,6 +41,8 @@ public:
 
     [[nodiscard]] std::optional<const Order> get_order(const OrderID order_id) const;
 
+    [[nodiscard]] const OrderBook& order_book() const { return book_; }
+
     void reset();
 
     template <OrderSide Side>

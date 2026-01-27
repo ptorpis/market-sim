@@ -1,33 +1,71 @@
-#include "exchange/matching_engine.hpp"
-#include "exchange/types.hpp"
-#include "utils/types.hpp"
+#include "agents/noise_trader.hpp"
+#include "simulation/simulation_engine.hpp"
 
 #include <iostream>
 
 int main() {
-    OrderRequest req = OrderRequest{.client_id = ClientID{1},
-                                    .quantity = Quantity{100},
-                                    .price = Price{1000},
-                                    .instrument_id = InstrumentID{1},
-                                    .side = OrderSide::BUY,
-                                    .type = OrderType::LIMIT};
+    SimulationEngine sim(Timestamp{10}); // 10 unit latency
 
-    OrderRequest sell_req =
-        OrderRequest{.client_id = ClientID{1},
-                     .quantity = Quantity{100},
-                     .price = Price{999},
-                     .instrument_id = InstrumentID{1},
-                     .side = OrderSide::SELL,
-                     .type = OrderType::LIMIT};
+    sim.add_instrument(InstrumentID{1});
 
-    MatchingEngine engine{InstrumentID{1}};
+    NoiseTraderConfig config{.instrument = InstrumentID{1},
+                             .fair_value = Price{1000},
+                             .spread = Price{50},
+                             .min_quantity = Quantity{10},
+                             .max_quantity = Quantity{100},
+                             .min_interval = Timestamp{50},
+                             .max_interval = Timestamp{200}};
 
-    auto res = engine.process_order(req);
-    [[maybe_unused]] auto res2 = engine.process_order(sell_req);
+    // Add several noise traders with different seeds
+    for (std::uint64_t i = 1; i <= 5; ++i) {
+        sim.add_agent<NoiseTrader>(ClientID{i}, config, /*seed=*/i * 100);
+        sim.scheduler().schedule(
+            AgentWakeup{.timestamp = Timestamp{i * 10}, .agent_id = ClientID{i}});
+    }
 
-    std::cout << "remaining:" << res.remaining_quantity << std::endl;
+    // Seed the order book with some initial liquidity
+    sim.scheduler().schedule(OrderSubmitted{.timestamp = Timestamp{0},
+                                            .agent_id = ClientID{100},
+                                            .instrument_id = InstrumentID{1},
+                                            .quantity = Quantity{500},
+                                            .price = Price{990},
+                                            .side = OrderSide::BUY,
+                                            .type = OrderType::LIMIT});
 
-    engine.print_order_book(5);
+    sim.scheduler().schedule(OrderSubmitted{.timestamp = Timestamp{0},
+                                            .agent_id = ClientID{100},
+                                            .instrument_id = InstrumentID{1},
+                                            .quantity = Quantity{500},
+                                            .price = Price{980},
+                                            .side = OrderSide::BUY,
+                                            .type = OrderType::LIMIT});
+
+    sim.scheduler().schedule(OrderSubmitted{.timestamp = Timestamp{0},
+                                            .agent_id = ClientID{101},
+                                            .instrument_id = InstrumentID{1},
+                                            .quantity = Quantity{500},
+                                            .price = Price{1010},
+                                            .side = OrderSide::SELL,
+                                            .type = OrderType::LIMIT});
+
+    sim.scheduler().schedule(OrderSubmitted{.timestamp = Timestamp{0},
+                                            .agent_id = ClientID{101},
+                                            .instrument_id = InstrumentID{1},
+                                            .quantity = Quantity{500},
+                                            .price = Price{1020},
+                                            .side = OrderSide::SELL,
+                                            .type = OrderType::LIMIT});
+
+    std::cout << "Initial order book:\n";
+    sim.run_until(Timestamp{1});
+    sim.print_book();
+
+    std::cout << "\nRunning simulation...\n";
+    sim.run_until(Timestamp{10000});
+    std::cout << "Simulation complete. Time: " << sim.now() << "\n\n";
+
+    std::cout << "Final order book:\n";
+    sim.print_book();
 
     return 0;
 }
