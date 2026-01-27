@@ -7,9 +7,8 @@ MatchResult MatchingEngine::process_order(const OrderRequest& request) {
 }
 
 void MatchingEngine::add_to_book_(const OrderRequest& request,
-                                  Quantity remaining_quantity, Price /*best_price*/,
-                                  OrderStatus status) {
-    Order order{.order_id = get_current_order_id(),
+                                  Quantity remaining_quantity, OrderStatus status) {
+    Order order{.order_id = get_current_order_id_(),
                 .client_id = request.client_id,
                 .quantity = remaining_quantity,
                 .price = request.price,

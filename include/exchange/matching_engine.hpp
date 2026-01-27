@@ -1,9 +1,13 @@
 #pragma once
 
 #include "exchange/types.hpp"
+#include <algorithm>
 #include <deque>
+#include <iomanip>
+#include <iostream>
 #include <map>
 #include <optional>
+#include <ranges>
 #include <unordered_map>
 
 template <typename T>
@@ -39,6 +43,45 @@ public:
 
     void reset();
 
+    template <OrderSide Side>
+    [[nodiscard]] std::vector<std::pair<Price, Quantity>> get_snapshot() const {
+        if constexpr (Side == OrderSide::BUY) {
+            return make_snapshot(book_.bids);
+        } else {
+            return make_snapshot(book_.asks);
+        }
+    }
+
+    void print_order_book(std::size_t depth = 15) const {
+        auto bids = get_snapshot<OrderSide::BUY>();
+        auto asks = get_snapshot<OrderSide::SELL>();
+
+        std::cout << "=============== ORDER BOOK ===============\n";
+        std::cout << "   BID (Qty @ Price) |   ASK (Qty @ Price)\n";
+        std::cout << "---------------------+---------------------\n";
+
+        auto bidIt = bids.begin();
+        auto askIt = asks.begin();
+
+        for (std::size_t i = 0; i < depth; ++i) {
+            std::string bidStr = (bidIt != bids.end())
+                                     ? (std::to_string(bidIt->second.value()) + " @ " +
+                                        std::to_string(bidIt->first.value()))
+                                     : "";
+            std::string askStr = (askIt != asks.end())
+                                     ? (std::to_string(askIt->second.value()) + " @ " +
+                                        std::to_string(askIt->first.value()))
+                                     : "";
+
+            std::cout << std::setw(20) << bidStr << " | " << askStr << "\n";
+
+            if (bidIt != bids.end()) ++bidIt;
+            if (askIt != asks.end()) ++askIt;
+        }
+
+        std::cout << std::flush;
+    }
+
 private:
     InstrumentID instrumentID_;
     OrderBook book_;
@@ -52,12 +95,38 @@ private:
     MatchResult match_order_(const OrderRequest&);
 
     [[nodiscard]] OrderID get_next_order_id_() noexcept { return ++order_counter_; }
-    [[nodiscard]] OrderID get_current_order_id() const noexcept { return order_counter_; }
-    [[nodiscard]] TradeID get_next_trade_id() noexcept { return ++trade_counter_; }
-    [[nodiscard]] TradeID get_current_trade_id() const noexcept { return trade_counter_; }
+    [[nodiscard]] OrderID get_current_order_id_() const noexcept {
+        return order_counter_;
+    }
+    [[nodiscard]] TradeID get_next_trade_id_() noexcept { return ++trade_counter_; }
+    [[nodiscard]] TradeID get_current_trade_id_() const noexcept {
+        return trade_counter_;
+    }
+
+    static std::vector<std::pair<Price, Quantity>> make_snapshot(const auto& book) {
+        std::vector<std::pair<Price, Quantity>> snapshot;
+        snapshot.reserve(book.size());
+
+        for (const auto& [price, queue] : book) {
+            auto qtyView = queue | std::views::transform([](const Order& order) {
+                               return order.quantity;
+                           });
+
+            Quantity total = std::ranges::fold_left(qtyView, Quantity{0},
+                                                    [](Quantity acc, Quantity q) {
+                                                        return acc + q;
+                                                    });
+
+            if (!total.is_zero()) {
+                snapshot.emplace_back(price, total);
+            }
+        }
+
+        return snapshot;
+    }
 
     void add_to_book_(const OrderRequest& request, Quantity remaining_quantity,
-                      Price best_price, OrderStatus status);
+                      OrderStatus status);
 
     template <typename Book> [[nodiscard]] bool
     remove_from_book_(const OrderID order_id, const Price price, Book& book);
@@ -82,7 +151,7 @@ private:
         constexpr static bool needs_price_check() { return true; }
 
         static OrderStatus finalize(MatchingEngine& eng, const OrderRequest& request,
-                                    Quantity remaining_quantity, Price best_price) {
+                                    Quantity remaining_quantity) {
             OrderStatus status{OrderStatus::NEW};
             if (remaining_quantity.is_zero()) {
                 status = OrderStatus::FILLED;
@@ -91,7 +160,7 @@ private:
                     status = OrderStatus::PARTIALLY_FILLED;
                 }
 
-                eng.add_to_book_(request, remaining_quantity, best_price, status);
+                eng.add_to_book_(request, remaining_quantity, status);
             }
 
             return status;
@@ -102,7 +171,7 @@ private:
         constexpr static bool needs_price_check() { return false; }
 
         static OrderStatus finalize(MatchingEngine&, const OrderRequest& request,
-                                    Quantity remaining_quantity, Price) {
+                                    Quantity remaining_quantity) {
             OrderStatus status{OrderStatus::NEW};
             if (remaining_quantity.is_zero()) {
                 status = OrderStatus::FILLED;
@@ -171,7 +240,7 @@ MatchResult MatchingEngine::match_order_(const OrderRequest& request) {
                 seller_order_id = incoming_order_id;
             }
 
-            trade_vec.emplace_back(TradeEvent{.trade_id = get_next_trade_id(),
+            trade_vec.emplace_back(TradeEvent{.trade_id = get_next_trade_id_(),
                                               .buyer_order_id = buyer_order_id,
                                               .seller_order_id = seller_order_id,
                                               .buyer_id = buyer_id,
@@ -197,10 +266,9 @@ MatchResult MatchingEngine::match_order_(const OrderRequest& request) {
         }
     }
 
-    OrderStatus status =
-        OrderTypePolicy::finalize(*this, request, remaining_quantity, best_price);
+    OrderStatus status = OrderTypePolicy::finalize(*this, request, remaining_quantity);
 
-    return MatchResult{.order_id = get_current_order_id(),
+    return MatchResult{.order_id = get_current_order_id_(),
                        .timestamp = Timestamp{0},
                        .remaining_quantity = remaining_quantity,
                        .accepted_price = best_price,

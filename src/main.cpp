@@ -37,11 +37,24 @@ int main() {
                                     .time_in_force = TimeInForce::GOOD_TILL_CANCELLED,
                                     .good_till = Timestamp{0}};
 
+    OrderRequest sell_req =
+        OrderRequest{.client_id = ClientID{1},
+                     .quantity = Quantity{100},
+                     .price = Price{999},
+                     .instrumentID = InstrumentID{1},
+                     .side = OrderSide::SELL,
+                     .type = OrderType::LIMIT,
+                     .time_in_force = TimeInForce::GOOD_TILL_CANCELLED,
+                     .good_till = Timestamp{0}};
+
     MatchingEngine engine{InstrumentID{1}};
 
     auto res = engine.process_order(req);
+    [[maybe_unused]] auto res2 = engine.process_order(sell_req);
 
     std::cout << "remaining:" << res.remaining_quantity << std::endl;
+
+    engine.print_order_book(5);
 
     return 0;
 }
