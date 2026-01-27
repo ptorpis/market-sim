@@ -12,10 +12,8 @@ void MatchingEngine::add_to_book_(const OrderRequest& request,
                 .client_id = request.client_id,
                 .quantity = remaining_quantity,
                 .price = request.price,
-                .good_till = request.good_till,
                 .timestamp = Timestamp{0},
                 .instrument_id = instrumentID_,
-                .time_in_force = request.time_in_force,
                 .side = request.side,
                 .type = request.type,
                 .status = status};
@@ -108,8 +106,6 @@ ModifyResult MatchingEngine::modify_order(const ClientID client_id,
     }
 
     OrderSide tmp_side = order->side;
-    TimeInForce tmp_tif = order->time_in_force;
-    Timestamp tmp_good_till = order->good_till;
 
     if (!cancel_order(client_id, order_id)) {
         return {.client_id = client_id,
@@ -127,11 +123,9 @@ ModifyResult MatchingEngine::modify_order(const ClientID client_id,
     OrderRequest new_request{.client_id = client_id,
                              .quantity = new_quantity,
                              .price = new_price,
-                             .instrumentID = instrumentID_,
+                             .instrument_id = instrumentID_,
                              .side = tmp_side,
-                             .type = OrderType::LIMIT,
-                             .time_in_force = tmp_tif,
-                             .good_till = tmp_good_till};
+                             .type = OrderType::LIMIT};
 
     int sideIdx = new_request.side == OrderSide::BUY ? 0 : 1;
     int typeIdx = 0; // always limit

@@ -22,11 +22,9 @@ protected:
             .client_id = client,
             .quantity = qty,
             .price = price,
-            .instrumentID = InstrumentID{1},
+            .instrument_id = InstrumentID{1},
             .side = OrderSide::BUY,
-            .type = OrderType::LIMIT,
-            .time_in_force = TimeInForce::GOOD_TILL_CANCELLED,
-            .good_till = Timestamp{0}
+            .type = OrderType::LIMIT
         };
     }
 
@@ -36,11 +34,9 @@ protected:
             .client_id = client,
             .quantity = qty,
             .price = price,
-            .instrumentID = InstrumentID{1},
+            .instrument_id = InstrumentID{1},
             .side = OrderSide::SELL,
-            .type = OrderType::LIMIT,
-            .time_in_force = TimeInForce::GOOD_TILL_CANCELLED,
-            .good_till = Timestamp{0}
+            .type = OrderType::LIMIT
         };
     }
 
@@ -50,11 +46,9 @@ protected:
             .client_id = client,
             .quantity = qty,
             .price = Price{0},
-            .instrumentID = InstrumentID{1},
+            .instrument_id = InstrumentID{1},
             .side = OrderSide::BUY,
-            .type = OrderType::MARKET,
-            .time_in_force = TimeInForce::GOOD_TILL_CANCELLED,
-            .good_till = Timestamp{0}
+            .type = OrderType::MARKET
         };
     }
 
@@ -64,11 +58,9 @@ protected:
             .client_id = client,
             .quantity = qty,
             .price = Price{0},
-            .instrumentID = InstrumentID{1},
+            .instrument_id = InstrumentID{1},
             .side = OrderSide::SELL,
-            .type = OrderType::MARKET,
-            .time_in_force = TimeInForce::GOOD_TILL_CANCELLED,
-            .good_till = Timestamp{0}
+            .type = OrderType::MARKET
         };
     }
 };

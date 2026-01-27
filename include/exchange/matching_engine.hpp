@@ -56,7 +56,7 @@ public:
         auto bids = get_snapshot<OrderSide::BUY>();
         auto asks = get_snapshot<OrderSide::SELL>();
 
-        std::cout << "=============== ORDER BOOK ===============\n";
+        std::cout << "=============== ORDER BOOK ================\n";
         std::cout << "   BID (Qty @ Price) |   ASK (Qty @ Price)\n";
         std::cout << "---------------------+---------------------\n";
 

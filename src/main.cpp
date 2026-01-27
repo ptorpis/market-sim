@@ -31,21 +31,17 @@ int main() {
     OrderRequest req = OrderRequest{.client_id = ClientID{1},
                                     .quantity = Quantity{100},
                                     .price = Price{1000},
-                                    .instrumentID = InstrumentID{1},
+                                    .instrument_id = InstrumentID{1},
                                     .side = OrderSide::BUY,
-                                    .type = OrderType::LIMIT,
-                                    .time_in_force = TimeInForce::GOOD_TILL_CANCELLED,
-                                    .good_till = Timestamp{0}};
+                                    .type = OrderType::LIMIT};
 
     OrderRequest sell_req =
         OrderRequest{.client_id = ClientID{1},
                      .quantity = Quantity{100},
                      .price = Price{999},
-                     .instrumentID = InstrumentID{1},
+                     .instrument_id = InstrumentID{1},
                      .side = OrderSide::SELL,
-                     .type = OrderType::LIMIT,
-                     .time_in_force = TimeInForce::GOOD_TILL_CANCELLED,
-                     .good_till = Timestamp{0}};
+                     .type = OrderType::LIMIT};
 
     MatchingEngine engine{InstrumentID{1}};
 

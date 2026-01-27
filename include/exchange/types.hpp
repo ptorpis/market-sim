@@ -21,13 +21,6 @@ enum class OrderType : std::uint8_t { LIMIT = 0, MARKET };
 
 enum class OrderSide : std::uint8_t { BUY = 0, SELL };
 
-enum class TimeInForce : std::uint8_t {
-    GOOD_TILL_CANCELLED,
-    FILL_OR_KILL,
-    END_OF_DAY,
-    GOOD_TILL_DATE
-};
-
 enum class ModifyStatus : std::uint8_t { ACCEPTED = 0, INVALID };
 
 struct TradeEvent {
@@ -57,10 +50,8 @@ struct Order {
     ClientID client_id;
     Quantity quantity;
     Price price;
-    Timestamp good_till;
     Timestamp timestamp;
     InstrumentID instrument_id;
-    TimeInForce time_in_force;
     OrderSide side;
     OrderType type;
     OrderStatus status;
@@ -82,11 +73,9 @@ struct OrderRequest {
     ClientID client_id;
     Quantity quantity;
     Price price;
-    InstrumentID instrumentID;
+    InstrumentID instrument_id;
     OrderSide side;
     OrderType type;
-    TimeInForce time_in_force;
-    Timestamp good_till;
 };
 
 struct OrderBook {
