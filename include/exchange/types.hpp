@@ -82,4 +82,10 @@ struct OrderBook {
     std::map<Price, std::deque<Order>, std::less<Price>> asks;
     std::map<Price, std::deque<Order>, std::greater<Price>> bids;
     std::unordered_map<OrderID, Order*, strong_hash<OrderID>> registry;
+
+    void reset() {
+        asks.clear();
+        bids.clear();
+        registry.clear();
+    }
 };

@@ -61,7 +61,7 @@ int main() {
     sim.print_book();
 
     std::cout << "\nRunning simulation...\n";
-    sim.run_until(Timestamp{10000});
+    sim.run_until(Timestamp{90000});
     std::cout << "Simulation complete. Time: " << sim.now() << "\n\n";
 
     std::cout << "Final order book:\n";

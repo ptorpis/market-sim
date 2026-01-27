@@ -43,7 +43,7 @@ public:
 
     [[nodiscard]] const OrderBook& order_book() const { return book_; }
 
-    void reset();
+    void reset() { book_.reset(); }
 
     template <OrderSide Side>
     [[nodiscard]] std::vector<std::pair<Price, Quantity>> get_snapshot() const {
@@ -54,7 +54,7 @@ public:
         }
     }
 
-    void print_order_book(std::size_t depth = 15) const {
+    void print_order_book() const {
         auto bids = get_snapshot<OrderSide::BUY>();
         auto asks = get_snapshot<OrderSide::SELL>();
 
@@ -65,7 +65,9 @@ public:
         auto bid_it = bids.begin();
         auto ask_it = asks.begin();
 
-        for (std::size_t i = 0; i < depth; ++i) {
+        auto max_depth = std::max(bids.size(), asks.size());
+
+        for (std::size_t i = 0; i < max_depth; ++i) {
             std::string bid_str = (bid_it != bids.end())
                                       ? (std::to_string(bid_it->second.value()) + " @ " +
                                          std::to_string(bid_it->first.value()))
