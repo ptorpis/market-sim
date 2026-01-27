@@ -21,20 +21,45 @@ void MatchingEngine::add_to_book_(const OrderRequest& request,
     if (request.side == OrderSide::BUY) {
         auto& queue = book_.bids[request.price];
         queue.emplace_back(std::move(order));
-        book_.registry[queue.back().order_id] = &queue.back();
+        book_.registry[queue.back().order_id] = {request.price, OrderSide::BUY};
     } else {
         auto& queue = book_.asks[request.price];
         queue.emplace_back(std::move(order));
-        book_.registry[queue.back().order_id] = &queue.back();
+        book_.registry[queue.back().order_id] = {request.price, OrderSide::SELL};
     }
 }
 
 std::optional<const Order> MatchingEngine::get_order(const OrderID order_id) const {
-    if (auto it = book_.registry.find(order_id); it != book_.registry.end()) {
-        return *(it->second);
-    } else {
+    auto it = book_.registry.find(order_id);
+    if (it == book_.registry.end()) {
         return std::nullopt;
     }
+
+    const auto& [price, side] = it->second;
+
+    if (side == OrderSide::BUY) {
+        auto price_it = book_.bids.find(price);
+        if (price_it == book_.bids.end()) {
+            return std::nullopt;
+        }
+        for (const auto& order : price_it->second) {
+            if (order.order_id == order_id) {
+                return order;
+            }
+        }
+    } else {
+        auto price_it = book_.asks.find(price);
+        if (price_it == book_.asks.end()) {
+            return std::nullopt;
+        }
+        for (const auto& order : price_it->second) {
+            if (order.order_id == order_id) {
+                return order;
+            }
+        }
+    }
+
+    return std::nullopt;
 }
 
 bool MatchingEngine::cancel_order(const ClientID client_id, const OrderID order_id) {
@@ -43,13 +68,17 @@ bool MatchingEngine::cancel_order(const ClientID client_id, const OrderID order_
         return false;
     }
 
-    if (it->second->client_id != client_id) {
+    const auto& [price, side] = it->second;
+
+    // Look up the order to verify client_id
+    auto order_opt = get_order(order_id);
+    if (!order_opt || order_opt->client_id != client_id) {
         return false;
     }
 
-    return it->second->side == OrderSide::BUY
-               ? remove_from_book_(order_id, it->second->price, book_.bids)
-               : remove_from_book_(order_id, it->second->price, book_.asks);
+    return side == OrderSide::BUY
+               ? remove_from_book_(order_id, price, book_.bids)
+               : remove_from_book_(order_id, price, book_.asks);
 }
 
 ModifyResult MatchingEngine::modify_order(const ClientID client_id,
@@ -68,8 +97,11 @@ ModifyResult MatchingEngine::modify_order(const ClientID client_id,
                 .match_result = std::nullopt};
     }
 
-    auto& order = it->second;
-    if (order->client_id != client_id) {
+    const auto& [price, side] = it->second;
+
+    // Get order to verify ownership
+    auto order_opt = get_order(order_id);
+    if (!order_opt || order_opt->client_id != client_id) {
         return {.client_id = client_id,
                 .old_order_id = order_id,
                 .new_order_id = OrderID{0},
@@ -80,7 +112,7 @@ ModifyResult MatchingEngine::modify_order(const ClientID client_id,
                 .match_result = std::nullopt};
     }
 
-    if (new_price == order->price && new_quantity == order->quantity) {
+    if (new_price == order_opt->price && new_quantity == order_opt->quantity) {
         return {.client_id = client_id,
                 .old_order_id = order_id,
                 .new_order_id = order_id,
@@ -91,9 +123,31 @@ ModifyResult MatchingEngine::modify_order(const ClientID client_id,
                 .match_result = std::nullopt};
     }
 
-    if (new_price == order->price && new_quantity < order->quantity) {
-        order->quantity = new_quantity;
-        order->status = OrderStatus::MODIFIED;
+    if (new_price == order_opt->price && new_quantity < order_opt->quantity) {
+        // Find and modify the order in place
+        if (side == OrderSide::BUY) {
+            auto price_it = book_.bids.find(price);
+            if (price_it != book_.bids.end()) {
+                for (auto& order : price_it->second) {
+                    if (order.order_id == order_id) {
+                        order.quantity = new_quantity;
+                        order.status = OrderStatus::MODIFIED;
+                        break;
+                    }
+                }
+            }
+        } else {
+            auto price_it = book_.asks.find(price);
+            if (price_it != book_.asks.end()) {
+                for (auto& order : price_it->second) {
+                    if (order.order_id == order_id) {
+                        order.quantity = new_quantity;
+                        order.status = OrderStatus::MODIFIED;
+                        break;
+                    }
+                }
+            }
+        }
 
         return {.client_id = client_id,
                 .old_order_id = order_id,
@@ -105,7 +159,7 @@ ModifyResult MatchingEngine::modify_order(const ClientID client_id,
                 .match_result = std::nullopt};
     }
 
-    OrderSide tmp_side = order->side;
+    OrderSide tmp_side = side;
 
     if (!cancel_order(client_id, order_id)) {
         return {.client_id = client_id,
@@ -118,7 +172,7 @@ ModifyResult MatchingEngine::modify_order(const ClientID client_id,
                 .match_result = std::nullopt};
     }
 
-    // now, the order is cancelled, and the pointer [order] is invalidated
+    // now, the order is cancelled
 
     OrderRequest new_request{.client_id = client_id,
                              .quantity = new_quantity,

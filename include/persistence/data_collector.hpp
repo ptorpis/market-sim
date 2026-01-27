@@ -19,9 +19,7 @@ public:
                   Timestamp pnl_snapshot_interval = Timestamp{1000})
         : csv_writer_(output_dir),
           pnl_snapshot_interval_(pnl_snapshot_interval),
-          output_dir_(output_dir) {
-        std::filesystem::create_directories(output_dir);
-    }
+          output_dir_(output_dir) {}
 
     // Called when an order is accepted and added to the book
     void on_order_accepted(const OrderAccepted& event, const Order& order) {

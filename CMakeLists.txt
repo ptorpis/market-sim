@@ -145,6 +145,7 @@ if(BUILD_TESTS)
         tests/matching_engine_tests.cpp
         tests/scheduler_tests.cpp
         tests/simulation_engine_tests.cpp
+        tests/persistence_tests.cpp
     )
 
     target_link_libraries(all_tests

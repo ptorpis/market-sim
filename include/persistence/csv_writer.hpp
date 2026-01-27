@@ -8,10 +8,11 @@
 
 class CSVWriter {
 public:
-    explicit CSVWriter(const std::filesystem::path& output_dir)
-        : deltas_file_(output_dir / "deltas.csv"),
-          trades_file_(output_dir / "trades.csv"),
-          pnl_file_(output_dir / "pnl.csv") {
+    explicit CSVWriter(const std::filesystem::path& output_dir) {
+        std::filesystem::create_directories(output_dir);
+        deltas_file_.open(output_dir / "deltas.csv");
+        trades_file_.open(output_dir / "trades.csv");
+        pnl_file_.open(output_dir / "pnl.csv");
         if (!deltas_file_.is_open() || !trades_file_.is_open() || !pnl_file_.is_open()) {
             throw std::runtime_error("Failed to open output files in: " + output_dir.string());
         }

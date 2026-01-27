@@ -81,7 +81,8 @@ struct OrderRequest {
 struct OrderBook {
     std::map<Price, std::deque<Order>, std::less<Price>> asks;
     std::map<Price, std::deque<Order>, std::greater<Price>> bids;
-    std::unordered_map<OrderID, Order*, strong_hash<OrderID>> registry;
+    // Registry stores (price, side) for fast lookup - pointers would become dangling on deque reallocation
+    std::unordered_map<OrderID, std::pair<Price, OrderSide>, strong_hash<OrderID>> registry;
 
     void reset() {
         asks.clear();
