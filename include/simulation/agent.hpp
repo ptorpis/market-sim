@@ -4,6 +4,13 @@
 #include "simulation/events.hpp"
 #include "utils/types.hpp"
 
+/**
+ * Shared simulation environment interface passed to all agents.
+ *
+ * Provides agents with access to market state and actions (submit/cancel/modify orders).
+ * A single instance (SimulationEngine) is shared across all agents. The context tracks
+ * which agent is currently executing, so actions are attributed to the correct participant.
+ */
 class AgentContext {
 public:
     virtual ~AgentContext() = default;
@@ -17,9 +24,18 @@ public:
 
     virtual const OrderBook& get_order_book(InstrumentID instrument) const = 0;
 
+    [[nodiscard]] virtual Price observe_fair_price(std::uint64_t agent_seed) const = 0;
+
     [[nodiscard]] virtual Timestamp now() const = 0;
 };
 
+/**
+ * Base class for individual trading participants in the simulation.
+ *
+ * Each Agent instance represents a single trader with its own state and strategy.
+ * Agents receive callbacks (on_wakeup, on_trade, etc.) with a reference to the shared
+ * AgentContext, through which they can observe market state and submit actions.
+ */
 class Agent {
 public:
     explicit Agent(ClientID id) : id_(id) {}

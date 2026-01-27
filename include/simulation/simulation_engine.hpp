@@ -2,12 +2,41 @@
 
 #include "exchange/matching_engine.hpp"
 #include "simulation/agent.hpp"
+#include "simulation/fair_price.hpp"
 #include "simulation/scheduler.hpp"
 
 #include <memory>
+#include <optional>
 #include <print>
 #include <unordered_map>
 
+struct PnL {
+    Quantity long_position{0};
+    Quantity short_position{0};
+    std::int64_t cash{0};  // Positive = received, negative = spent
+
+    [[nodiscard]] std::int64_t net_position() const {
+        return static_cast<std::int64_t>(long_position.value()) -
+               static_cast<std::int64_t>(short_position.value());
+    }
+
+    [[nodiscard]] std::int64_t unrealized_pnl(Price mark_price) const {
+        return net_position() * static_cast<std::int64_t>(mark_price.value());
+    }
+
+    [[nodiscard]] std::int64_t total_pnl(Price mark_price) const {
+        return cash + unrealized_pnl(mark_price);
+    }
+};
+
+/**
+ * Main simulation orchestrator implementing the shared AgentContext.
+ *
+ * Owns and manages all agents, matching engines, and the event scheduler.
+ * When an agent callback is invoked, the engine passes itself as the AgentContext,
+ * allowing agents to interact with the simulation through a controlled interface.
+ * Tracks the currently-executing agent so actions are attributed correctly.
+ */
 class SimulationEngine : public AgentContext {
 public:
     explicit SimulationEngine(Timestamp latency = Timestamp{0}) : latency_(latency) {}
@@ -25,7 +54,10 @@ public:
         return ref;
     }
 
-    // Run simulation
+    void set_fair_price(FairPriceConfig config, std::uint64_t seed) {
+        fair_price_.emplace(config, seed);
+    }
+
     void run_until(Timestamp end_time) {
         while (!scheduler_.empty() && get_timestamp(scheduler_.peek()) <= end_time) {
             step();
@@ -38,6 +70,11 @@ public:
         }
 
         Event event = scheduler_.pop();
+
+        if (fair_price_.has_value()) {
+            fair_price_->advance_to(scheduler_.now());
+        }
+
         dispatch_event(event);
     }
 
@@ -93,9 +130,35 @@ public:
 
     [[nodiscard]] Timestamp now() const override { return scheduler_.now(); }
 
-    // Access for testing
+    [[nodiscard]] Price observe_fair_price(std::uint64_t agent_seed) const override {
+        if (!fair_price_.has_value()) {
+            return Price{0};
+        }
+        return fair_price_->observe(agent_seed);
+    }
+
     Scheduler& scheduler() { return scheduler_; }
     const Scheduler& scheduler() const { return scheduler_; }
+
+    [[nodiscard]] const PnL& get_pnl(ClientID client_id) const {
+        static PnL empty;
+        auto it = pnl_.find(client_id);
+        return it != pnl_.end() ? it->second : empty;
+    }
+
+    [[nodiscard]] const std::unordered_map<ClientID, PnL, strong_hash<ClientID>>& all_pnl() const {
+        return pnl_;
+    }
+
+    void print_pnl(Price mark_price) const {
+        std::println("=============== P&L REPORT ================");
+        std::println("{:>10} {:>10} {:>12} {:>12}", "Client", "Position", "Cash", "Total P&L");
+        std::println("-------------------------------------------");
+        for (const auto& [client_id, pnl] : pnl_) {
+            std::println("{:>10} {:>10} {:>12} {:>12}", client_id.value(), pnl.net_position(),
+                         pnl.cash, pnl.total_pnl(mark_price));
+        }
+    }
 
 private:
     Scheduler scheduler_;
@@ -103,6 +166,8 @@ private:
                        strong_hash<InstrumentID>>
         engines_;
     std::unordered_map<ClientID, std::unique_ptr<Agent>, strong_hash<ClientID>> agents_;
+    std::unordered_map<ClientID, PnL, strong_hash<ClientID>> pnl_;
+    std::optional<FairPriceGenerator> fair_price_;
     ClientID current_agent_{0};
     Timestamp latency_;
 
@@ -264,6 +329,17 @@ private:
     }
 
     void notify_trade(const Trade& trade) {
+        std::int64_t trade_value =
+            static_cast<std::int64_t>(trade.quantity.value() * trade.price.value());
+
+        auto& buyer_pnl = pnl_[trade.buyer_id];
+        buyer_pnl.long_position = buyer_pnl.long_position + trade.quantity;
+        buyer_pnl.cash -= trade_value;
+
+        auto& seller_pnl = pnl_[trade.seller_id];
+        seller_pnl.short_position = seller_pnl.short_position + trade.quantity;
+        seller_pnl.cash += trade_value;
+
         auto buyer_it = agents_.find(trade.buyer_id);
         if (buyer_it != agents_.end()) {
             current_agent_ = trade.buyer_id;
