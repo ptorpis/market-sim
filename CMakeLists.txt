@@ -163,38 +163,3 @@ if(BUILD_TESTS)
 
 endif()
 
-# ==========================
-# Coverage Report Target
-# ==========================
-
-if(ENABLE_COVERAGE AND BUILD_TESTS)
-
-    find_program(LCOV lcov REQUIRED)
-    find_program(GENHTML genhtml REQUIRED)
-
-    get_filename_component(GCC_BIN_DIR ${CMAKE_CXX_COMPILER} DIRECTORY)
-
-    find_program(GCOV_BIN gcov
-        HINTS ${GCC_BIN_DIR}
-        REQUIRED
-    )
-
-    message(STATUS "Using gcov: ${GCOV_BIN}")
-
-    add_custom_target(coverage
-        COMMAND ${LCOV} --gcov-tool ${GCOV_BIN} --directory . --zerocounters
-        COMMAND ctest
-        COMMAND ${LCOV} --gcov-tool ${GCOV_BIN} --directory . --capture --output-file coverage.info
-        COMMAND ${LCOV} --remove coverage.info
-            '/usr/*'
-            '*/tests/*'
-            '*/_deps/*'
-            '*/main.cpp'
-            --output-file coverage.info
-        COMMAND ${GENHTML} coverage.info --output-directory coverage_report
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        COMMENT "Generating coverage report"
-    )
-
-endif()
-
