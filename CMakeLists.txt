@@ -72,7 +72,6 @@ endif()
 # endif()
 
 add_library(SimCore
-    src/time/simulation_timer.cpp
     src/exchange/matching_engine.cpp
 )
 

@@ -1,33 +1,10 @@
-#include "time/simulation_timer.hpp"
-#include "utils/types.hpp"
-#include <format>
-#include <iostream>
-#include <print>
-#include <unordered_map>
-
 #include "exchange/matching_engine.hpp"
 #include "exchange/types.hpp"
+#include "utils/types.hpp"
+
+#include <iostream>
 
 int main() {
-    Timestamp timestamp{100000};
-    std::cout << timestamp << std::endl;
-    SimulationTimer timer{13};
-
-    for (auto i{0uz}; i < 10; ++i) {
-        timer.tick();
-        std::cout << timer.now() << std::endl;
-    }
-
-    std::println("{}", timestamp);
-
-    std::unordered_map<Timestamp, int, strong_hash<Timestamp>>{};
-
-    Price price = Price{100};
-
-    std::puts(std::format("Price={}", price).c_str());
-
-    std::cout << static_cast<std::uint64_t>(timestamp) << std::endl;
-
     OrderRequest req = OrderRequest{.client_id = ClientID{1},
                                     .quantity = Quantity{100},
                                     .price = Price{1000},
