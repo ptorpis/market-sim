@@ -60,23 +60,23 @@ public:
         std::cout << "   BID (Qty @ Price) |   ASK (Qty @ Price)\n";
         std::cout << "---------------------+---------------------\n";
 
-        auto bidIt = bids.begin();
-        auto askIt = asks.begin();
+        auto bid_it = bids.begin();
+        auto ask_it = asks.begin();
 
         for (std::size_t i = 0; i < depth; ++i) {
-            std::string bidStr = (bidIt != bids.end())
-                                     ? (std::to_string(bidIt->second.value()) + " @ " +
-                                        std::to_string(bidIt->first.value()))
-                                     : "";
-            std::string askStr = (askIt != asks.end())
-                                     ? (std::to_string(askIt->second.value()) + " @ " +
-                                        std::to_string(askIt->first.value()))
-                                     : "";
+            std::string bid_str = (bid_it != bids.end())
+                                      ? (std::to_string(bid_it->second.value()) + " @ " +
+                                         std::to_string(bid_it->first.value()))
+                                      : "";
+            std::string ask_str = (ask_it != asks.end())
+                                      ? (std::to_string(ask_it->second.value()) + " @ " +
+                                         std::to_string(ask_it->first.value()))
+                                      : "";
 
-            std::cout << std::setw(20) << bidStr << " | " << askStr << "\n";
+            std::cout << std::setw(20) << bid_str << " | " << ask_str << "\n";
 
-            if (bidIt != bids.end()) ++bidIt;
-            if (askIt != asks.end()) ++askIt;
+            if (bid_it != bids.end()) ++bid_it;
+            if (ask_it != asks.end()) ++ask_it;
         }
 
         std::cout << std::flush;
