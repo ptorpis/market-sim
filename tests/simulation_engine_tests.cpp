@@ -527,7 +527,7 @@ TEST_F(PnLTest, CashSumsToZeroAcrossAllParticipants) {
 
     std::int64_t total_cash = 0;
     for (const auto& [client_id, pnl] : engine->all_pnl()) {
-        total_cash += pnl.cash;
+        total_cash += pnl.cash.value();
     }
     EXPECT_EQ(total_cash, 0);
 }

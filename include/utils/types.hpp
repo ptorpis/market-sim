@@ -170,3 +170,7 @@ struct ClientID : StrongType<std::uint64_t, ClientID> {
 struct EventSequenceNumber : StrongType<std::uint64_t, EventSequenceNumber> {
     using StrongType::StrongType;
 };
+
+struct Cash : StrongType<std::int64_t, Cash> {
+    using StrongType::StrongType;
+};

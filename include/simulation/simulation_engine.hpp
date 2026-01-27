@@ -1,10 +1,12 @@
 #pragma once
 
 #include "exchange/matching_engine.hpp"
+#include "persistence/data_collector.hpp"
 #include "simulation/agent.hpp"
 #include "simulation/fair_price.hpp"
 #include "simulation/scheduler.hpp"
 
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <print>
@@ -13,7 +15,7 @@
 struct PnL {
     Quantity long_position{0};
     Quantity short_position{0};
-    std::int64_t cash{0};  // Positive = received, negative = spent
+    Cash cash{0};  // Positive = received, negative = spent
 
     [[nodiscard]] std::int64_t net_position() const {
         return static_cast<std::int64_t>(long_position.value()) -
@@ -25,7 +27,7 @@ struct PnL {
     }
 
     [[nodiscard]] std::int64_t total_pnl(Price mark_price) const {
-        return cash + unrealized_pnl(mark_price);
+        return cash.value() + unrealized_pnl(mark_price);
     }
 };
 
@@ -44,6 +46,9 @@ public:
     // Setup
     void add_instrument(InstrumentID id) {
         engines_.emplace(id, std::make_unique<MatchingEngine>(id));
+        if (data_collector_) {
+            data_collector_->metadata().add_instrument(id);
+        }
     }
 
     template <typename AgentType, typename... Args> AgentType& add_agent(Args&&... args) {
@@ -56,7 +61,25 @@ public:
 
     void set_fair_price(FairPriceConfig config, std::uint64_t seed) {
         fair_price_.emplace(config, seed);
+        fair_price_seed_ = seed;
+        if (data_collector_) {
+            data_collector_->metadata().set_fair_price(config, seed);
+        }
     }
+
+    void enable_persistence(const std::filesystem::path& output_dir,
+                            Timestamp pnl_snapshot_interval = Timestamp{1000}) {
+        data_collector_ = std::make_unique<DataCollector>(output_dir, pnl_snapshot_interval);
+        data_collector_->metadata().set_simulation_config(latency_);
+    }
+
+    void finalize_persistence() {
+        if (data_collector_) {
+            data_collector_->finalize(scheduler_.now());
+        }
+    }
+
+    DataCollector* data_collector() { return data_collector_.get(); }
 
     void run_until(Timestamp end_time) {
         while (!scheduler_.empty() && get_timestamp(scheduler_.peek()) <= end_time) {
@@ -170,6 +193,8 @@ private:
     std::optional<FairPriceGenerator> fair_price_;
     ClientID current_agent_{0};
     Timestamp latency_;
+    std::unique_ptr<DataCollector> data_collector_;
+    std::uint64_t fair_price_seed_{0};
 
     void dispatch_event(const Event& event) {
         std::visit(
@@ -209,10 +234,19 @@ private:
 
         MatchResult result = engine_it->second->process_order(request);
 
-        notify_agent(event.agent_id, OrderAccepted{.timestamp = scheduler_.now(),
-                                                   .order_id = result.order_id,
-                                                   .agent_id = event.agent_id,
-                                                   .instrument_id = event.instrument_id});
+        OrderAccepted accepted{.timestamp = scheduler_.now(),
+                               .order_id = result.order_id,
+                               .agent_id = event.agent_id,
+                               .instrument_id = event.instrument_id};
+        notify_agent(event.agent_id, accepted);
+
+        // Record ADD delta if order was added to book (has remaining quantity)
+        if (data_collector_ && result.remaining_quantity > Quantity{0}) {
+            auto order = engine_it->second->get_order(result.order_id);
+            if (order) {
+                data_collector_->on_order_accepted(accepted, *order);
+            }
+        }
 
         for (const auto& trade_event : result.trade_vec) {
             Trade trade{.timestamp = scheduler_.now(),
@@ -225,7 +259,7 @@ private:
                         .quantity = trade_event.quantity,
                         .price = trade_event.price};
 
-            notify_trade(trade);
+            notify_trade(trade, engine_it->second.get());
         }
     }
 
@@ -235,13 +269,18 @@ private:
             if (!order.has_value()) {
                 continue;
             }
+            Order order_copy = *order;  // Copy before cancellation
             Quantity remaining = order->quantity;
             if (engine->cancel_order(event.agent_id, event.order_id)) {
-                notify_agent(event.agent_id,
-                             OrderCancelled{.timestamp = scheduler_.now(),
-                                            .order_id = event.order_id,
-                                            .agent_id = event.agent_id,
-                                            .remaining_quantity = remaining});
+                OrderCancelled cancelled{.timestamp = scheduler_.now(),
+                                         .order_id = event.order_id,
+                                         .agent_id = event.agent_id,
+                                         .remaining_quantity = remaining};
+                notify_agent(event.agent_id, cancelled);
+
+                if (data_collector_) {
+                    data_collector_->on_order_cancelled(cancelled, order_copy);
+                }
                 return;
             }
         }
@@ -256,20 +295,25 @@ private:
 
             Price old_price = order->price;
             Quantity old_quantity = order->quantity;
+            OrderSide side = order->side;
 
             ModifyResult result = engine->modify_order(
                 event.agent_id, event.order_id, event.new_quantity, event.new_price);
 
             if (result.status == ModifyStatus::ACCEPTED) {
-                notify_agent(event.agent_id,
-                             OrderModified{.timestamp = scheduler_.now(),
-                                           .old_order_id = event.order_id,
-                                           .new_order_id = result.new_order_id,
-                                           .agent_id = event.agent_id,
-                                           .old_price = old_price,
-                                           .new_price = event.new_price,
-                                           .old_quantity = old_quantity,
-                                           .new_quantity = event.new_quantity});
+                OrderModified modified{.timestamp = scheduler_.now(),
+                                       .old_order_id = event.order_id,
+                                       .new_order_id = result.new_order_id,
+                                       .agent_id = event.agent_id,
+                                       .old_price = old_price,
+                                       .new_price = event.new_price,
+                                       .old_quantity = old_quantity,
+                                       .new_quantity = event.new_quantity};
+                notify_agent(event.agent_id, modified);
+
+                if (data_collector_) {
+                    data_collector_->on_order_modified(modified, instrument_id, side);
+                }
 
                 if (result.match_result.has_value()) {
                     for (const auto& trade_event : result.match_result->trade_vec) {
@@ -282,7 +326,7 @@ private:
                                     .seller_id = trade_event.seller_id,
                                     .quantity = trade_event.quantity,
                                     .price = trade_event.price};
-                        notify_trade(trade);
+                        notify_trade(trade, engine.get());
                     }
                 }
             }
@@ -328,7 +372,7 @@ private:
         }
     }
 
-    void notify_trade(const Trade& trade) {
+    void notify_trade(const Trade& trade, MatchingEngine* engine = nullptr) {
         std::int64_t trade_value =
             static_cast<std::int64_t>(trade.quantity.value() * trade.price.value());
 
@@ -339,6 +383,28 @@ private:
         auto& seller_pnl = pnl_[trade.seller_id];
         seller_pnl.short_position = seller_pnl.short_position + trade.quantity;
         seller_pnl.cash += trade_value;
+
+        // Record trade and FILL deltas
+        if (data_collector_) {
+            data_collector_->on_trade(trade);
+
+            if (engine) {
+                // Record FILL delta for buyer order
+                auto buyer_order = engine->get_order(trade.buyer_order_id);
+                Quantity buyer_remaining = buyer_order ? buyer_order->quantity : Quantity{0};
+                data_collector_->on_fill(trade, trade.buyer_order_id, trade.buyer_id,
+                                         buyer_remaining, OrderSide::BUY);
+
+                // Record FILL delta for seller order
+                auto seller_order = engine->get_order(trade.seller_order_id);
+                Quantity seller_remaining = seller_order ? seller_order->quantity : Quantity{0};
+                data_collector_->on_fill(trade, trade.seller_order_id, trade.seller_id,
+                                         seller_remaining, OrderSide::SELL);
+            }
+
+            // Snapshot P&L periodically
+            data_collector_->maybe_snapshot_pnl(scheduler_.now(), pnl_, fair_price());
+        }
 
         auto buyer_it = agents_.find(trade.buyer_id);
         if (buyer_it != agents_.end()) {

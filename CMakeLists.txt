@@ -1,6 +1,16 @@
 cmake_minimum_required(VERSION 3.20)
 project(MarketSimulator VERSION 0.1 LANGUAGES CXX)
 
+# ==========================
+# Dependencies
+# ==========================
+
+include(FetchContent)
+FetchContent_Declare(json
+    URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+)
+FetchContent_MakeAvailable(json)
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -110,6 +120,7 @@ add_library(SimCore
 )
 
 target_include_directories(SimCore PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(SimCore PUBLIC nlohmann_json::nlohmann_json)
 
 # ==========================
 # Main executable
