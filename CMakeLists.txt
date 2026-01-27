@@ -28,6 +28,7 @@ option(ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
 option(ENABLE_COVERAGE "Enable Coverage" OFF)
 option(ENABLE_VALGRIND "Enable Valgrind Memcheck" OFF)
 option(BUILD_TESTS "Build tests" ON)
+option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
 
 # ==========================
 # Safety checks

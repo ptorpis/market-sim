@@ -12,6 +12,29 @@
 namespace fs = std::filesystem;
 
 // =============================================================================
+// Test Helpers
+// =============================================================================
+
+inline Order make_test_order(OrderID order_id = OrderID{1},
+                             ClientID client_id = ClientID{1},
+                             Quantity quantity = Quantity{50}, Price price = Price{1000},
+                             Timestamp timestamp = Timestamp{100},
+                             InstrumentID instrument_id = InstrumentID{1},
+                             OrderSide side = OrderSide::BUY,
+                             OrderType type = OrderType::LIMIT,
+                             OrderStatus status = OrderStatus::NEW) {
+    return Order{.order_id = order_id,
+                 .client_id = client_id,
+                 .quantity = quantity,
+                 .price = price,
+                 .timestamp = timestamp,
+                 .instrument_id = instrument_id,
+                 .side = side,
+                 .type = type,
+                 .status = status};
+}
+
+// =============================================================================
 // Test Fixture with Temporary Directory
 // =============================================================================
 
@@ -19,7 +42,8 @@ class PersistenceTest : public ::testing::Test {
 protected:
     void SetUp() override {
         // Create unique temp directory for each test
-        test_dir_ = fs::temp_directory_path() / ("market_sim_test_" + std::to_string(test_counter_++));
+        test_dir_ = fs::temp_directory_path() /
+                    ("market_sim_test_" + std::to_string(test_counter_++));
         fs::create_directories(test_dir_);
     }
 
@@ -49,7 +73,7 @@ protected:
         while (std::getline(file, line)) {
             ++count;
         }
-        return count > 0 ? count - 1 : 0;  // Subtract header line
+        return count > 0 ? count - 1 : 0; // Subtract header line
     }
 };
 
@@ -70,18 +94,16 @@ TEST(RecordsTest, OrderSideToString) {
 }
 
 TEST(RecordsTest, OrderDeltaDefaultValues) {
-    OrderDelta delta{
-        .timestamp = Timestamp{100},
-        .sequence_num = EventSequenceNumber{1},
-        .type = DeltaType::ADD,
-        .order_id = OrderID{1},
-        .client_id = ClientID{1},
-        .instrument_id = InstrumentID{1},
-        .side = OrderSide::BUY,
-        .price = Price{1000},
-        .quantity = Quantity{50},
-        .remaining_qty = Quantity{50}
-    };
+    OrderDelta delta{.timestamp = Timestamp{100},
+                     .sequence_num = EventSequenceNumber{1},
+                     .type = DeltaType::ADD,
+                     .order_id = OrderID{1},
+                     .client_id = ClientID{1},
+                     .instrument_id = InstrumentID{1},
+                     .side = OrderSide::BUY,
+                     .price = Price{1000},
+                     .quantity = Quantity{50},
+                     .remaining_qty = Quantity{50}};
 
     // Optional fields should default to 0
     EXPECT_EQ(delta.trade_id.value(), 0);
@@ -95,9 +117,7 @@ TEST(RecordsTest, OrderDeltaDefaultValues) {
 // =============================================================================
 
 TEST_F(PersistenceTest, CSVWriterCreatesFiles) {
-    {
-        CSVWriter writer(test_dir_);
-    }  // Destructor called here
+    { CSVWriter writer(test_dir_); } // Destructor called here
 
     EXPECT_TRUE(fs::exists(test_dir_ / "deltas.csv"));
     EXPECT_TRUE(fs::exists(test_dir_ / "trades.csv"));
@@ -105,35 +125,34 @@ TEST_F(PersistenceTest, CSVWriterCreatesFiles) {
 }
 
 TEST_F(PersistenceTest, CSVWriterWritesHeaders) {
-    {
-        CSVWriter writer(test_dir_);
-    }
+    { CSVWriter writer(test_dir_); }
 
     std::string deltas_content = read_file(test_dir_ / "deltas.csv");
-    EXPECT_TRUE(deltas_content.find("timestamp,sequence_num,delta_type") != std::string::npos);
+    EXPECT_TRUE(deltas_content.find("timestamp,sequence_num,delta_type") !=
+                std::string::npos);
 
     std::string trades_content = read_file(test_dir_ / "trades.csv");
-    EXPECT_TRUE(trades_content.find("timestamp,trade_id,instrument_id") != std::string::npos);
+    EXPECT_TRUE(trades_content.find("timestamp,trade_id,instrument_id") !=
+                std::string::npos);
 
     std::string pnl_content = read_file(test_dir_ / "pnl.csv");
-    EXPECT_TRUE(pnl_content.find("timestamp,client_id,long_position") != std::string::npos);
+    EXPECT_TRUE(pnl_content.find("timestamp,client_id,long_position") !=
+                std::string::npos);
 }
 
 TEST_F(PersistenceTest, CSVWriterWritesDelta) {
     {
         CSVWriter writer(test_dir_);
-        writer.write_delta(OrderDelta{
-            .timestamp = Timestamp{100},
-            .sequence_num = EventSequenceNumber{1},
-            .type = DeltaType::ADD,
-            .order_id = OrderID{42},
-            .client_id = ClientID{5},
-            .instrument_id = InstrumentID{1},
-            .side = OrderSide::BUY,
-            .price = Price{1000},
-            .quantity = Quantity{50},
-            .remaining_qty = Quantity{50}
-        });
+        writer.write_delta(OrderDelta{.timestamp = Timestamp{100},
+                                      .sequence_num = EventSequenceNumber{1},
+                                      .type = DeltaType::ADD,
+                                      .order_id = OrderID{42},
+                                      .client_id = ClientID{5},
+                                      .instrument_id = InstrumentID{1},
+                                      .side = OrderSide::BUY,
+                                      .price = Price{1000},
+                                      .quantity = Quantity{50},
+                                      .remaining_qty = Quantity{50}});
     }
 
     std::string content = read_file(test_dir_ / "deltas.csv");
@@ -143,17 +162,15 @@ TEST_F(PersistenceTest, CSVWriterWritesDelta) {
 TEST_F(PersistenceTest, CSVWriterWritesTrade) {
     {
         CSVWriter writer(test_dir_);
-        writer.write_trade(TradeRecord{
-            .timestamp = Timestamp{200},
-            .trade_id = TradeID{1},
-            .instrument_id = InstrumentID{1},
-            .buyer_id = ClientID{1},
-            .seller_id = ClientID{2},
-            .buyer_order_id = OrderID{10},
-            .seller_order_id = OrderID{20},
-            .price = Price{1000},
-            .quantity = Quantity{50}
-        });
+        writer.write_trade(TradeRecord{.timestamp = Timestamp{200},
+                                       .trade_id = TradeID{1},
+                                       .instrument_id = InstrumentID{1},
+                                       .buyer_id = ClientID{1},
+                                       .seller_id = ClientID{2},
+                                       .buyer_order_id = OrderID{10},
+                                       .seller_order_id = OrderID{20},
+                                       .price = Price{1000},
+                                       .quantity = Quantity{50}});
     }
 
     std::string content = read_file(test_dir_ / "trades.csv");
@@ -163,14 +180,12 @@ TEST_F(PersistenceTest, CSVWriterWritesTrade) {
 TEST_F(PersistenceTest, CSVWriterWritesPnL) {
     {
         CSVWriter writer(test_dir_);
-        writer.write_pnl(PnLSnapshot{
-            .timestamp = Timestamp{1000},
-            .client_id = ClientID{1},
-            .long_position = Quantity{100},
-            .short_position = Quantity{0},
-            .cash = Cash{-100000},
-            .fair_price = Price{1000}
-        });
+        writer.write_pnl(PnLSnapshot{.timestamp = Timestamp{1000},
+                                     .client_id = ClientID{1},
+                                     .long_position = Quantity{100},
+                                     .short_position = Quantity{0},
+                                     .cash = Cash{-100000},
+                                     .fair_price = Price{1000}});
     }
 
     std::string content = read_file(test_dir_ / "pnl.csv");
@@ -181,18 +196,17 @@ TEST_F(PersistenceTest, CSVWriterWritesMultipleRecords) {
     {
         CSVWriter writer(test_dir_);
         for (int i = 0; i < 100; ++i) {
-            writer.write_delta(OrderDelta{
-                .timestamp = Timestamp{static_cast<uint64_t>(i * 10)},
-                .sequence_num = EventSequenceNumber{static_cast<uint64_t>(i)},
-                .type = DeltaType::ADD,
-                .order_id = OrderID{static_cast<uint64_t>(i)},
-                .client_id = ClientID{1},
-                .instrument_id = InstrumentID{1},
-                .side = OrderSide::BUY,
-                .price = Price{1000},
-                .quantity = Quantity{50},
-                .remaining_qty = Quantity{50}
-            });
+            writer.write_delta(
+                OrderDelta{.timestamp = Timestamp{static_cast<uint64_t>(i * 10)},
+                           .sequence_num = EventSequenceNumber{static_cast<uint64_t>(i)},
+                           .type = DeltaType::ADD,
+                           .order_id = OrderID{static_cast<uint64_t>(i)},
+                           .client_id = ClientID{1},
+                           .instrument_id = InstrumentID{1},
+                           .side = OrderSide::BUY,
+                           .price = Price{1000},
+                           .quantity = Quantity{50},
+                           .remaining_qty = Quantity{50}});
         }
     }
 
@@ -201,18 +215,16 @@ TEST_F(PersistenceTest, CSVWriterWritesMultipleRecords) {
 
 TEST_F(PersistenceTest, CSVWriterFlushWorks) {
     CSVWriter writer(test_dir_);
-    writer.write_delta(OrderDelta{
-        .timestamp = Timestamp{100},
-        .sequence_num = EventSequenceNumber{1},
-        .type = DeltaType::ADD,
-        .order_id = OrderID{1},
-        .client_id = ClientID{1},
-        .instrument_id = InstrumentID{1},
-        .side = OrderSide::BUY,
-        .price = Price{1000},
-        .quantity = Quantity{50},
-        .remaining_qty = Quantity{50}
-    });
+    writer.write_delta(OrderDelta{.timestamp = Timestamp{100},
+                                  .sequence_num = EventSequenceNumber{1},
+                                  .type = DeltaType::ADD,
+                                  .order_id = OrderID{1},
+                                  .client_id = ClientID{1},
+                                  .instrument_id = InstrumentID{1},
+                                  .side = OrderSide::BUY,
+                                  .price = Price{1000},
+                                  .quantity = Quantity{50},
+                                  .remaining_qty = Quantity{50}});
 
     writer.flush();
 
@@ -229,44 +241,40 @@ TEST_F(PersistenceTest, CSVWriterThrowsOnInvalidDirectory) {
 TEST_F(PersistenceTest, CSVWriterWritesFillDelta) {
     {
         CSVWriter writer(test_dir_);
-        writer.write_delta(OrderDelta{
-            .timestamp = Timestamp{100},
-            .sequence_num = EventSequenceNumber{1},
-            .type = DeltaType::FILL,
-            .order_id = OrderID{42},
-            .client_id = ClientID{5},
-            .instrument_id = InstrumentID{1},
-            .side = OrderSide::BUY,
-            .price = Price{1000},
-            .quantity = Quantity{30},
-            .remaining_qty = Quantity{20},
-            .trade_id = TradeID{99}
-        });
+        writer.write_delta(OrderDelta{.timestamp = Timestamp{100},
+                                      .sequence_num = EventSequenceNumber{1},
+                                      .type = DeltaType::FILL,
+                                      .order_id = OrderID{42},
+                                      .client_id = ClientID{5},
+                                      .instrument_id = InstrumentID{1},
+                                      .side = OrderSide::BUY,
+                                      .price = Price{1000},
+                                      .quantity = Quantity{30},
+                                      .remaining_qty = Quantity{20},
+                                      .trade_id = TradeID{99}});
     }
 
     std::string content = read_file(test_dir_ / "deltas.csv");
     EXPECT_TRUE(content.find("FILL") != std::string::npos);
-    EXPECT_TRUE(content.find("99") != std::string::npos);  // trade_id
+    EXPECT_TRUE(content.find("99") != std::string::npos); // trade_id
 }
 
 TEST_F(PersistenceTest, CSVWriterWritesModifyDelta) {
     {
         CSVWriter writer(test_dir_);
-        writer.write_delta(OrderDelta{
-            .timestamp = Timestamp{100},
-            .sequence_num = EventSequenceNumber{1},
-            .type = DeltaType::MODIFY,
-            .order_id = OrderID{42},
-            .client_id = ClientID{5},
-            .instrument_id = InstrumentID{1},
-            .side = OrderSide::BUY,
-            .price = Price{1000},
-            .quantity = Quantity{50},
-            .remaining_qty = Quantity{30},
-            .new_order_id = OrderID{43},
-            .new_price = Price{1010},
-            .new_quantity = Quantity{30}
-        });
+        writer.write_delta(OrderDelta{.timestamp = Timestamp{100},
+                                      .sequence_num = EventSequenceNumber{1},
+                                      .type = DeltaType::MODIFY,
+                                      .order_id = OrderID{42},
+                                      .client_id = ClientID{5},
+                                      .instrument_id = InstrumentID{1},
+                                      .side = OrderSide::BUY,
+                                      .price = Price{1000},
+                                      .quantity = Quantity{50},
+                                      .remaining_qty = Quantity{30},
+                                      .new_order_id = OrderID{43},
+                                      .new_price = Price{1010},
+                                      .new_quantity = Quantity{30}});
     }
 
     std::string content = read_file(test_dir_ / "deltas.csv");
@@ -314,12 +322,11 @@ TEST_F(PersistenceTest, MetadataWriterWritesInstruments) {
 TEST_F(PersistenceTest, MetadataWriterWritesFairPrice) {
     MetadataWriter metadata;
     metadata.set_simulation_config(Timestamp{0});
-    metadata.set_fair_price(FairPriceConfig{
-        .initial_price = Price{1000000},
-        .drift = 0.0,
-        .volatility = 0.005,
-        .tick_size = Timestamp{1000}
-    }, 42);
+    metadata.set_fair_price(FairPriceConfig{.initial_price = Price{1000000},
+                                            .drift = 0.0,
+                                            .volatility = 0.005,
+                                            .tick_size = Timestamp{1000}},
+                            42);
     metadata.write(test_dir_);
 
     std::string content = read_file(test_dir_ / "metadata.json");
@@ -350,7 +357,7 @@ TEST_F(PersistenceTest, MetadataWriterWritesMultipleAgents) {
     for (int i = 1; i <= 5; ++i) {
         nlohmann::json config = {{"id", i}};
         metadata.add_agent(ClientID{static_cast<uint64_t>(i)}, "Agent", config,
-                          static_cast<uint64_t>(i * 100));
+                           static_cast<uint64_t>(i * 100));
     }
     metadata.write(test_dir_);
 
@@ -379,22 +386,12 @@ TEST_F(PersistenceTest, DataCollectorRecordsOrderAccepted) {
     {
         DataCollector collector(test_dir_);
 
-        OrderAccepted event{
-            .timestamp = Timestamp{100},
-            .order_id = OrderID{1},
-            .agent_id = ClientID{5},
-            .instrument_id = InstrumentID{1}
-        };
+        OrderAccepted event{.timestamp = Timestamp{100},
+                            .order_id = OrderID{1},
+                            .agent_id = ClientID{5},
+                            .instrument_id = InstrumentID{1}};
 
-        Order order{
-            .order_id = OrderID{1},
-            .client_id = ClientID{5},
-            .quantity = Quantity{50},
-            .price = Price{1000},
-            .timestamp = Timestamp{100},
-            .instrument_id = InstrumentID{1},
-            .side = OrderSide::BUY
-        };
+        Order order = make_test_order(OrderID{1}, ClientID{5});
 
         collector.on_order_accepted(event, order);
         collector.finalize(Timestamp{1000});
@@ -409,17 +406,15 @@ TEST_F(PersistenceTest, DataCollectorRecordsTrade) {
     {
         DataCollector collector(test_dir_);
 
-        Trade trade{
-            .timestamp = Timestamp{200},
-            .trade_id = TradeID{1},
-            .instrument_id = InstrumentID{1},
-            .buyer_order_id = OrderID{10},
-            .seller_order_id = OrderID{20},
-            .buyer_id = ClientID{1},
-            .seller_id = ClientID{2},
-            .quantity = Quantity{50},
-            .price = Price{1000}
-        };
+        Trade trade{.timestamp = Timestamp{200},
+                    .trade_id = TradeID{1},
+                    .instrument_id = InstrumentID{1},
+                    .buyer_order_id = OrderID{10},
+                    .seller_order_id = OrderID{20},
+                    .buyer_id = ClientID{1},
+                    .seller_id = ClientID{2},
+                    .quantity = Quantity{50},
+                    .price = Price{1000}};
 
         collector.on_trade(trade);
         collector.finalize(Timestamp{1000});
@@ -432,17 +427,15 @@ TEST_F(PersistenceTest, DataCollectorRecordsFill) {
     {
         DataCollector collector(test_dir_);
 
-        Trade trade{
-            .timestamp = Timestamp{200},
-            .trade_id = TradeID{1},
-            .instrument_id = InstrumentID{1},
-            .buyer_order_id = OrderID{10},
-            .seller_order_id = OrderID{20},
-            .buyer_id = ClientID{1},
-            .seller_id = ClientID{2},
-            .quantity = Quantity{50},
-            .price = Price{1000}
-        };
+        Trade trade{.timestamp = Timestamp{200},
+                    .trade_id = TradeID{1},
+                    .instrument_id = InstrumentID{1},
+                    .buyer_order_id = OrderID{10},
+                    .seller_order_id = OrderID{20},
+                    .buyer_id = ClientID{1},
+                    .seller_id = ClientID{2},
+                    .quantity = Quantity{50},
+                    .price = Price{1000}};
 
         collector.on_fill(trade, OrderID{10}, ClientID{1}, Quantity{0}, OrderSide::BUY);
         collector.finalize(Timestamp{1000});
@@ -456,22 +449,13 @@ TEST_F(PersistenceTest, DataCollectorRecordsCancellation) {
     {
         DataCollector collector(test_dir_);
 
-        OrderCancelled event{
-            .timestamp = Timestamp{100},
-            .order_id = OrderID{1},
-            .agent_id = ClientID{5},
-            .remaining_quantity = Quantity{50}
-        };
+        OrderCancelled event{.timestamp = Timestamp{100},
+                             .order_id = OrderID{1},
+                             .agent_id = ClientID{5},
+                             .remaining_quantity = Quantity{50}};
 
-        Order order{
-            .order_id = OrderID{1},
-            .client_id = ClientID{5},
-            .quantity = Quantity{50},
-            .price = Price{1000},
-            .timestamp = Timestamp{50},
-            .instrument_id = InstrumentID{1},
-            .side = OrderSide::BUY
-        };
+        Order order = make_test_order(OrderID{1}, ClientID{5}, Quantity{50}, Price{1000},
+                                      Timestamp{50});
 
         collector.on_order_cancelled(event, order);
         collector.finalize(Timestamp{1000});
@@ -485,16 +469,14 @@ TEST_F(PersistenceTest, DataCollectorRecordsModification) {
     {
         DataCollector collector(test_dir_);
 
-        OrderModified event{
-            .timestamp = Timestamp{100},
-            .old_order_id = OrderID{1},
-            .new_order_id = OrderID{2},
-            .agent_id = ClientID{5},
-            .old_price = Price{1000},
-            .new_price = Price{1010},
-            .old_quantity = Quantity{50},
-            .new_quantity = Quantity{30}
-        };
+        OrderModified event{.timestamp = Timestamp{100},
+                            .old_order_id = OrderID{1},
+                            .new_order_id = OrderID{2},
+                            .agent_id = ClientID{5},
+                            .old_price = Price{1000},
+                            .new_price = Price{1010},
+                            .old_quantity = Quantity{50},
+                            .new_quantity = Quantity{30}};
 
         collector.on_order_modified(event, InstrumentID{1}, OrderSide::BUY);
         collector.finalize(Timestamp{1000});
@@ -508,15 +490,7 @@ TEST_F(PersistenceTest, DataCollectorSequenceNumbers) {
     {
         DataCollector collector(test_dir_);
 
-        Order order{
-            .order_id = OrderID{1},
-            .client_id = ClientID{1},
-            .quantity = Quantity{50},
-            .price = Price{1000},
-            .timestamp = Timestamp{100},
-            .instrument_id = InstrumentID{1},
-            .side = OrderSide::BUY
-        };
+        Order order = make_test_order();
 
         // Add multiple events - each should get unique sequence number
         for (int i = 0; i < 5; ++i) {
@@ -524,8 +498,7 @@ TEST_F(PersistenceTest, DataCollectorSequenceNumbers) {
                 .timestamp = Timestamp{static_cast<uint64_t>(100 + i * 10)},
                 .order_id = OrderID{static_cast<uint64_t>(i + 1)},
                 .agent_id = ClientID{1},
-                .instrument_id = InstrumentID{1}
-            };
+                .instrument_id = InstrumentID{1}};
             order.order_id = OrderID{static_cast<uint64_t>(i + 1)};
             collector.on_order_accepted(event, order);
         }
@@ -623,15 +596,13 @@ TEST_F(PersistenceTest, DataCollectorMetadataAccess) {
 // =============================================================================
 
 TEST_F(PersistenceTest, NoiseTraderConfigToJson) {
-    NoiseTraderConfig config{
-        .instrument = InstrumentID{1},
-        .fair_value = Price{1000000},
-        .spread = Price{36},
-        .min_quantity = Quantity{10},
-        .max_quantity = Quantity{100},
-        .min_interval = Timestamp{50},
-        .max_interval = Timestamp{200}
-    };
+    NoiseTraderConfig config{.instrument = InstrumentID{1},
+                             .fair_value = Price{1000000},
+                             .spread = Price{36},
+                             .min_quantity = Quantity{10},
+                             .max_quantity = Quantity{100},
+                             .min_interval = Timestamp{50},
+                             .max_interval = Timestamp{200}};
 
     nlohmann::json j = to_json(config);
     EXPECT_EQ(j["instrument"], 1);
@@ -644,14 +615,12 @@ TEST_F(PersistenceTest, NoiseTraderConfigToJson) {
 }
 
 TEST_F(PersistenceTest, MarketMakerConfigToJson) {
-    MarketMakerConfig config{
-        .instrument = InstrumentID{1},
-        .half_spread = Price{5},
-        .quote_size = Quantity{50},
-        .update_interval = Timestamp{100},
-        .inventory_skew_factor = 0.5,
-        .max_position = Quantity{500}
-    };
+    MarketMakerConfig config{.instrument = InstrumentID{1},
+                             .half_spread = Price{5},
+                             .quote_size = Quantity{50},
+                             .update_interval = Timestamp{100},
+                             .inventory_skew_factor = 0.5,
+                             .max_position = Quantity{500}};
 
     nlohmann::json j = to_json(config);
     EXPECT_EQ(j["instrument"], 1);
@@ -663,15 +632,13 @@ TEST_F(PersistenceTest, MarketMakerConfigToJson) {
 }
 
 TEST_F(PersistenceTest, InformedTraderConfigToJson) {
-    InformedTraderConfig config{
-        .instrument = InstrumentID{1},
-        .min_quantity = Quantity{20},
-        .max_quantity = Quantity{80},
-        .min_interval = Timestamp{100},
-        .max_interval = Timestamp{500},
-        .min_edge = Price{3},
-        .observation_noise = 5.0
-    };
+    InformedTraderConfig config{.instrument = InstrumentID{1},
+                                .min_quantity = Quantity{20},
+                                .max_quantity = Quantity{80},
+                                .min_interval = Timestamp{100},
+                                .max_interval = Timestamp{500},
+                                .min_edge = Price{3},
+                                .observation_noise = 5.0};
 
     nlohmann::json j = to_json(config);
     EXPECT_EQ(j["instrument"], 1);
@@ -684,12 +651,10 @@ TEST_F(PersistenceTest, InformedTraderConfigToJson) {
 }
 
 TEST_F(PersistenceTest, FairPriceConfigToJson) {
-    FairPriceConfig config{
-        .initial_price = Price{1000000},
-        .drift = 0.001,
-        .volatility = 0.005,
-        .tick_size = Timestamp{1000}
-    };
+    FairPriceConfig config{.initial_price = Price{1000000},
+                           .drift = 0.001,
+                           .volatility = 0.005,
+                           .tick_size = Timestamp{1000}};
 
     nlohmann::json j = to_json(config);
     EXPECT_EQ(j["initial_price"], 1000000);
@@ -705,17 +670,15 @@ TEST_F(PersistenceTest, FairPriceConfigToJson) {
 TEST_F(PersistenceTest, CSVWriterHandlesLargeValues) {
     {
         CSVWriter writer(test_dir_);
-        writer.write_trade(TradeRecord{
-            .timestamp = Timestamp{9999999999999},
-            .trade_id = TradeID{999999999},
-            .instrument_id = InstrumentID{1},
-            .buyer_id = ClientID{1},
-            .seller_id = ClientID{2},
-            .buyer_order_id = OrderID{1},
-            .seller_order_id = OrderID{2},
-            .price = Price{999999999999},
-            .quantity = Quantity{999999999}
-        });
+        writer.write_trade(TradeRecord{.timestamp = Timestamp{9999999999999},
+                                       .trade_id = TradeID{999999999},
+                                       .instrument_id = InstrumentID{1},
+                                       .buyer_id = ClientID{1},
+                                       .seller_id = ClientID{2},
+                                       .buyer_order_id = OrderID{1},
+                                       .seller_order_id = OrderID{2},
+                                       .price = Price{999999999999},
+                                       .quantity = Quantity{999999999}});
     }
 
     std::string content = read_file(test_dir_ / "trades.csv");
@@ -726,14 +689,12 @@ TEST_F(PersistenceTest, CSVWriterHandlesLargeValues) {
 TEST_F(PersistenceTest, CSVWriterHandlesNegativeCash) {
     {
         CSVWriter writer(test_dir_);
-        writer.write_pnl(PnLSnapshot{
-            .timestamp = Timestamp{1000},
-            .client_id = ClientID{1},
-            .long_position = Quantity{100},
-            .short_position = Quantity{0},
-            .cash = Cash{-50000000000LL},  // Large negative
-            .fair_price = Price{1000}
-        });
+        writer.write_pnl(PnLSnapshot{.timestamp = Timestamp{1000},
+                                     .client_id = ClientID{1},
+                                     .long_position = Quantity{100},
+                                     .short_position = Quantity{0},
+                                     .cash = Cash{-50000000000LL}, // Large negative
+                                     .fair_price = Price{1000}});
     }
 
     std::string content = read_file(test_dir_ / "pnl.csv");
@@ -779,32 +740,28 @@ TEST_F(PersistenceTest, DataCollectorFinalizeWritesMetadata) {
 
 TEST_F(PersistenceTest, CSVWriterMoveConstructor) {
     CSVWriter writer1(test_dir_);
-    writer1.write_delta(OrderDelta{
-        .timestamp = Timestamp{100},
-        .sequence_num = EventSequenceNumber{1},
-        .type = DeltaType::ADD,
-        .order_id = OrderID{1},
-        .client_id = ClientID{1},
-        .instrument_id = InstrumentID{1},
-        .side = OrderSide::BUY,
-        .price = Price{1000},
-        .quantity = Quantity{50},
-        .remaining_qty = Quantity{50}
-    });
+    writer1.write_delta(OrderDelta{.timestamp = Timestamp{100},
+                                   .sequence_num = EventSequenceNumber{1},
+                                   .type = DeltaType::ADD,
+                                   .order_id = OrderID{1},
+                                   .client_id = ClientID{1},
+                                   .instrument_id = InstrumentID{1},
+                                   .side = OrderSide::BUY,
+                                   .price = Price{1000},
+                                   .quantity = Quantity{50},
+                                   .remaining_qty = Quantity{50}});
 
     CSVWriter writer2(std::move(writer1));
-    writer2.write_delta(OrderDelta{
-        .timestamp = Timestamp{200},
-        .sequence_num = EventSequenceNumber{2},
-        .type = DeltaType::ADD,
-        .order_id = OrderID{2},
-        .client_id = ClientID{1},
-        .instrument_id = InstrumentID{1},
-        .side = OrderSide::BUY,
-        .price = Price{1000},
-        .quantity = Quantity{50},
-        .remaining_qty = Quantity{50}
-    });
+    writer2.write_delta(OrderDelta{.timestamp = Timestamp{200},
+                                   .sequence_num = EventSequenceNumber{2},
+                                   .type = DeltaType::ADD,
+                                   .order_id = OrderID{2},
+                                   .client_id = ClientID{1},
+                                   .instrument_id = InstrumentID{1},
+                                   .side = OrderSide::BUY,
+                                   .price = Price{1000},
+                                   .quantity = Quantity{50},
+                                   .remaining_qty = Quantity{50}});
 
     writer2.flush();
 
