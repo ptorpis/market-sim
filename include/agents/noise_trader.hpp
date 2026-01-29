@@ -1,18 +1,9 @@
 #pragma once
 
+#include "config/configs.hpp"
 #include "simulation/agent.hpp"
 
 #include <random>
-
-struct NoiseTraderConfig {
-    InstrumentID instrument;
-    Price fair_value;
-    Price spread;            // Orders placed within [fair_value - spread, fair_value + spread]
-    Quantity min_quantity;
-    Quantity max_quantity;
-    Timestamp min_interval;  // Min time between wakeups
-    Timestamp max_interval;  // Max time between wakeups
-};
 
 class NoiseTrader : public Agent {
 public:

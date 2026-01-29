@@ -1,19 +1,10 @@
 #pragma once
 
+#include "config/configs.hpp"
 #include "simulation/agent.hpp"
 
 #include <cmath>
 #include <random>
-
-struct InformedTraderConfig {
-    InstrumentID instrument;
-    Quantity min_quantity;
-    Quantity max_quantity;
-    Timestamp min_interval;
-    Timestamp max_interval;
-    Price min_edge;
-    double observation_noise;
-};
 
 /**
  * Trades based on a noisy observation of the fair price.

@@ -1,0 +1,136 @@
+{
+  "simulation": {
+    "latency": 10,
+    "duration": 1000,
+    "output_dir": "./output",
+    "pnl_snapshot_interval": 100
+  },
+  "instruments": [1],
+  "fair_price": {
+    "initial_price": 1000000,
+    "drift": 0.0001,
+    "volatility": 0.005,
+    "tick_size": 1000,
+    "seed": 43
+  },
+  "agents": [
+    {
+      "client_id": 1,
+      "type": "NoiseTrader",
+      "initial_wakeup": 10,
+      "seed": 100,
+      "config": {
+        "instrument": 1,
+        "fair_value": 1000000,
+        "spread": 36,
+        "min_quantity": 10,
+        "max_quantity": 100,
+        "min_interval": 50,
+        "max_interval": 200
+      }
+    },
+    {
+      "client_id": 2,
+      "type": "NoiseTrader",
+      "initial_wakeup": 20,
+      "seed": 200,
+      "config": {
+        "instrument": 1,
+        "fair_value": 1000000,
+        "spread": 36,
+        "min_quantity": 10,
+        "max_quantity": 100,
+        "min_interval": 50,
+        "max_interval": 200
+      }
+    },
+    {
+      "client_id": 3,
+      "type": "NoiseTrader",
+      "initial_wakeup": 30,
+      "seed": 300,
+      "config": {
+        "instrument": 1,
+        "fair_value": 1000000,
+        "spread": 36,
+        "min_quantity": 10,
+        "max_quantity": 100,
+        "min_interval": 50,
+        "max_interval": 200
+      }
+    },
+    {
+      "client_id": 4,
+      "type": "NoiseTrader",
+      "initial_wakeup": 40,
+      "seed": 400,
+      "config": {
+        "instrument": 1,
+        "fair_value": 1000000,
+        "spread": 36,
+        "min_quantity": 10,
+        "max_quantity": 100,
+        "min_interval": 50,
+        "max_interval": 200
+      }
+    },
+    {
+      "client_id": 5,
+      "type": "NoiseTrader",
+      "initial_wakeup": 50,
+      "seed": 500,
+      "config": {
+        "instrument": 1,
+        "fair_value": 1000000,
+        "spread": 36,
+        "min_quantity": 10,
+        "max_quantity": 100,
+        "min_interval": 50,
+        "max_interval": 200
+      }
+    },
+    {
+      "client_id": 10,
+      "type": "MarketMaker",
+      "initial_wakeup": 5,
+      "seed": 999,
+      "config": {
+        "instrument": 1,
+        "half_spread": 5,
+        "quote_size": 50,
+        "update_interval": 100,
+        "inventory_skew_factor": 0.5,
+        "max_position": 500
+      }
+    },
+    {
+      "client_id": 20,
+      "type": "InformedTrader",
+      "initial_wakeup": 50,
+      "seed": 777,
+      "config": {
+        "instrument": 1,
+        "min_quantity": 20,
+        "max_quantity": 80,
+        "min_interval": 100,
+        "max_interval": 500,
+        "min_edge": 3,
+        "observation_noise": 5.0
+      }
+    }
+  ],
+  "initial_orders": [
+    {
+      "instrument": 1,
+      "side": "BUY",
+      "price": 999900,
+      "quantity": 500
+    },
+    {
+      "instrument": 1,
+      "side": "SELL",
+      "price": 1000100,
+      "quantity": 500
+    }
+  ]
+}

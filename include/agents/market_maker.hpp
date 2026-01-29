@@ -1,20 +1,12 @@
 #pragma once
 
+#include "config/configs.hpp"
 #include "simulation/agent.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <optional>
 #include <random>
-
-struct MarketMakerConfig {
-    InstrumentID instrument;
-    Price half_spread;
-    Quantity quote_size;
-    Timestamp update_interval;
-    double inventory_skew_factor;
-    Quantity max_position;
-};
 
 /**
  * Quotes bid/ask around the order book midpoint with inventory-based skew.

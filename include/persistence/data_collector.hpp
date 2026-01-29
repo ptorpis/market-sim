@@ -16,9 +16,8 @@ struct PnL;
 class DataCollector {
 public:
     DataCollector(const std::filesystem::path& output_dir,
-                  Timestamp pnl_snapshot_interval = Timestamp{1000})
-        : csv_writer_(output_dir),
-          pnl_snapshot_interval_(pnl_snapshot_interval),
+                  Timestamp pnl_snapshot_interval = Timestamp{100})
+        : csv_writer_(output_dir), pnl_snapshot_interval_(pnl_snapshot_interval),
           output_dir_(output_dir) {}
 
     // Called when an order is accepted and added to the book
@@ -79,7 +78,8 @@ public:
     }
 
     // Called when an order is modified
-    void on_order_modified(const OrderModified& event, InstrumentID instrument_id, OrderSide side) {
+    void on_order_modified(const OrderModified& event, InstrumentID instrument_id,
+                           OrderSide side) {
         csv_writer_.write_delta(OrderDelta{.timestamp = event.timestamp,
                                            .sequence_num = next_sequence(),
                                            .type = DeltaType::MODIFY,

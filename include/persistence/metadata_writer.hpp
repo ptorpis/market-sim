@@ -1,10 +1,6 @@
 #pragma once
 
-#include "agents/informed_trader.hpp"
-#include "agents/market_maker.hpp"
-#include "agents/noise_trader.hpp"
-#include "simulation/fair_price.hpp"
-#include "utils/types.hpp"
+#include "config/configs.hpp"
 
 #include <nlohmann/json.hpp>
 

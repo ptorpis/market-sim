@@ -1,16 +1,9 @@
 #pragma once
 
-#include "utils/types.hpp"
+#include "config/configs.hpp"
 
 #include <cmath>
 #include <random>
-
-struct FairPriceConfig {
-    Price initial_price;
-    double drift;
-    double volatility;
-    Timestamp tick_size;
-};
 
 /**
  * Generates fair prices using Geometric Brownian Motion.

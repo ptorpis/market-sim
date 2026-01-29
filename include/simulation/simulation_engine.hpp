@@ -15,7 +15,7 @@
 struct PnL {
     Quantity long_position{0};
     Quantity short_position{0};
-    Cash cash{0};  // Positive = received, negative = spent
+    Cash cash{0}; // Positive = received, negative = spent
 
     [[nodiscard]] std::int64_t net_position() const {
         return static_cast<std::int64_t>(long_position.value()) -
@@ -68,8 +68,9 @@ public:
     }
 
     void enable_persistence(const std::filesystem::path& output_dir,
-                            Timestamp pnl_snapshot_interval = Timestamp{1000}) {
-        data_collector_ = std::make_unique<DataCollector>(output_dir, pnl_snapshot_interval);
+                            Timestamp pnl_snapshot_interval = Timestamp{100}) {
+        data_collector_ =
+            std::make_unique<DataCollector>(output_dir, pnl_snapshot_interval);
         data_collector_->metadata().set_simulation_config(latency_);
     }
 
@@ -169,17 +170,19 @@ public:
         return it != pnl_.end() ? it->second : empty;
     }
 
-    [[nodiscard]] const std::unordered_map<ClientID, PnL, strong_hash<ClientID>>& all_pnl() const {
+    [[nodiscard]] const std::unordered_map<ClientID, PnL, strong_hash<ClientID>>&
+    all_pnl() const {
         return pnl_;
     }
 
     void print_pnl(Price mark_price) const {
         std::println("=============== P&L REPORT ================");
-        std::println("{:>10} {:>10} {:>12} {:>12}", "Client", "Position", "Cash", "Total P&L");
+        std::println("{:>10} {:>10} {:>12} {:>12}", "Client", "Position", "Cash",
+                     "Total P&L");
         std::println("-------------------------------------------");
         for (const auto& [client_id, pnl] : pnl_) {
-            std::println("{:>10} {:>10} {:>12} {:>12}", client_id.value(), pnl.net_position(),
-                         pnl.cash, pnl.total_pnl(mark_price));
+            std::println("{:>10} {:>10} {:>12} {:>12}", client_id.value(),
+                         pnl.net_position(), pnl.cash, pnl.total_pnl(mark_price));
         }
     }
 
@@ -269,7 +272,7 @@ private:
             if (!order.has_value()) {
                 continue;
             }
-            Order order_copy = *order;  // Copy before cancellation
+            Order order_copy = *order; // Copy before cancellation
             Quantity remaining = order->quantity;
             if (engine->cancel_order(event.agent_id, event.order_id)) {
                 OrderCancelled cancelled{.timestamp = scheduler_.now(),
@@ -391,13 +394,15 @@ private:
             if (engine) {
                 // Record FILL delta for buyer order
                 auto buyer_order = engine->get_order(trade.buyer_order_id);
-                Quantity buyer_remaining = buyer_order ? buyer_order->quantity : Quantity{0};
+                Quantity buyer_remaining =
+                    buyer_order ? buyer_order->quantity : Quantity{0};
                 data_collector_->on_fill(trade, trade.buyer_order_id, trade.buyer_id,
                                          buyer_remaining, OrderSide::BUY);
 
                 // Record FILL delta for seller order
                 auto seller_order = engine->get_order(trade.seller_order_id);
-                Quantity seller_remaining = seller_order ? seller_order->quantity : Quantity{0};
+                Quantity seller_remaining =
+                    seller_order ? seller_order->quantity : Quantity{0};
                 data_collector_->on_fill(trade, trade.seller_order_id, trade.seller_id,
                                          seller_remaining, OrderSide::SELL);
             }
