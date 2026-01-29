@@ -35,8 +35,9 @@ void run_from_config(const SimulationConfig& config) {
         } else if (agent.type == "InformedTrader") {
             sim.add_agent<InformedTrader>(agent.id, agent.informed_trader, agent.seed);
             if (sim.data_collector()) {
-                sim.data_collector()->metadata().add_agent(
-                    agent.id, "InformedTrader", to_json(agent.informed_trader), agent.seed);
+                sim.data_collector()->metadata().add_agent(agent.id, "InformedTrader",
+                                                           to_json(agent.informed_trader),
+                                                           agent.seed);
             }
         }
         sim.scheduler().schedule(
@@ -138,7 +139,7 @@ void run_default() {
                                             .agent_id = ClientID{100},
                                             .instrument_id = InstrumentID{1},
                                             .quantity = Quantity{500},
-                                            .price = Price{999'900},
+                                            .price = Price{999'990},
                                             .side = OrderSide::BUY,
                                             .type = OrderType::LIMIT});
 
@@ -146,7 +147,7 @@ void run_default() {
                                             .agent_id = ClientID{100},
                                             .instrument_id = InstrumentID{1},
                                             .quantity = Quantity{500},
-                                            .price = Price{1'000'100},
+                                            .price = Price{1'000'010},
                                             .side = OrderSide::SELL,
                                             .type = OrderType::LIMIT});
 
@@ -155,7 +156,7 @@ void run_default() {
     sim.print_book();
 
     std::cout << "\nRunning simulation...\n";
-    sim.run_until(Timestamp{1000});
+    sim.run_until(Timestamp{10000});
     std::cout << "Simulation complete. Time: " << sim.now() << "\n\n";
 
     std::cout << "Final order book:\n";

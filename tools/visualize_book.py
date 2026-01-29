@@ -29,6 +29,7 @@ class Order:
     side: Side
     price: int
     quantity: int
+    timestamp: int
 
 
 class OrderBook:
@@ -104,7 +105,7 @@ class OrderBook:
         client_id = int(delta["client_id"])
 
         if delta_type == "ADD":
-            order = Order(order_id, client_id, side, price, remaining)
+            order = Order(order_id, client_id, side, price, remaining, self.timestamp)
             self._add_order(order)
 
         elif delta_type == "FILL":
@@ -122,7 +123,9 @@ class OrderBook:
             new_quantity = int(delta["new_quantity"])
 
             self._remove_order(order_id)
-            new_order = Order(new_order_id, client_id, side, new_price, new_quantity)
+            new_order = Order(
+                new_order_id, client_id, side, new_price, new_quantity, self.timestamp
+            )
             self._add_order(new_order)
 
     def get_order(self, order_id: int) -> Optional[Order]:
@@ -219,7 +222,7 @@ class OrderBook:
         print()
 
         print(f"{'BID (Qty @ Price)':>22} | {'ASK (Qty @ Price)':<22}")
-        print(f"{'-' * 22}+{'-' * 23}")
+        print(f"{'-' * 23}+{'-' * 23}")
 
         max_rows = max(len(bid_levels), len(ask_levels))
         for i in range(max_rows):
@@ -275,6 +278,17 @@ def get_all_timestamps(deltas_path: str) -> list[int]:
     return sorted(timestamps)
 
 
+def print_commands() -> None:
+    print("Commands:")
+    print("  <timestamp>          - Jump to timestamp")
+    print("  n                    - Next timestamp")
+    print("  p                    - Previous timestamp")
+    print("  o <order_id>         - Inspect specific order")
+    print("  l <BUY|SELL> <price> - List orders at price level")
+    print("  q                    - Quit")
+    print("  h                    - Print commands available")
+
+
 def interactive_mode(deltas_path: str) -> None:
     timestamps = get_all_timestamps(deltas_path)
     if not timestamps:
@@ -284,13 +298,7 @@ def interactive_mode(deltas_path: str) -> None:
     print(
         f"Found {len(timestamps)} unique timestamps: {timestamps[0]} to {timestamps[-1]}"
     )
-    print("Commands:")
-    print("  <timestamp>       - Jump to timestamp")
-    print("  n                 - Next timestamp")
-    print("  p                 - Previous timestamp")
-    print("  o <order_id>      - Inspect specific order")
-    print("  l <BUY|SELL> <price> - List orders at price level")
-    print("  q                 - Quit")
+    print_commands()
 
     idx = 0
     book = None
@@ -325,6 +333,7 @@ def interactive_mode(deltas_path: str) -> None:
                     print(f"  Side: {order.side.value}")
                     print(f"  Price: {order.price}")
                     print(f"  Quantity: {order.quantity}")
+                    print(f"  Added at: {order.timestamp}")
                 else:
                     print(f"Order {order_id} not found")
             except ValueError:
@@ -344,6 +353,8 @@ def interactive_mode(deltas_path: str) -> None:
                 closest = min(timestamps, key=lambda t: abs(t - target))
                 idx = timestamps.index(closest)
                 print(f"Timestamp {target} not found, showing closest: {closest}")
+        elif parts[0].lower() == "h":
+            print_commands()
         else:
             print("Unknown command")
 
