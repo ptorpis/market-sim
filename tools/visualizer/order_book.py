@@ -218,8 +218,11 @@ class OrderBook:
 
         return None
 
-    def get_orders_at_price(self, side: Side, price: int) -> list[Order]:
+    def get_orders_at_price(self, side: Side, price: int = -1) -> list[Order]:
         book = self._get_book(side)
+        if price == -1:
+            print(book.peekitem(0))
+
         if price in book:
             return list(book[price])
         return []

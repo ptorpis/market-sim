@@ -194,6 +194,7 @@ def print_commands() -> None:
     print("  p                    - Previous timestamp")
     print("  o <order_id>         - Inspect specific order")
     print("  l <BUY|SELL> <price> - List orders at price level")
+    print("  t                    - Inspect the top of the book")
     print("  q                    - Quit")
     print("  h                    - Print commands available")
 
@@ -291,6 +292,14 @@ def interactive_mode(deltas_path: str) -> None:
             book = rebuild_to_index(new_idx)
             current_deltas = index.read_deltas_at_index(new_idx)
             idx = new_idx
+        elif parts[0].lower() == "t":
+            print("\nTOP OF BOOK:")
+            if (bid := book.best_bid()) and (ask := book.best_ask()):
+                best_bid_price, _ = bid
+                best_ask_price, _ = ask
+                book.print_orders_at_level(Side.BUY, best_bid_price)
+                book.print_orders_at_level(Side.SELL, best_ask_price)
+
         elif parts[0].lower() == "h":
             print_commands()
         else:
