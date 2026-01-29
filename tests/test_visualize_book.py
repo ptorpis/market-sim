@@ -15,14 +15,13 @@ import tempfile
 
 import pytest
 
-from tools.visualize_book import (
-    DeltaIndex,
+from tools.visualizer.order_book import (
     Order,
     OrderBook,
     Side,
-    read_deltas,
-    reconstruct_at,
 )
+
+from tools.visualize_book import DeltaIndex, read_deltas, reconstruct_at
 
 
 # =============================================================================

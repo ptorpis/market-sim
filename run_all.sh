@@ -40,5 +40,10 @@ cmake --build build/valgrind --parallel $BUILD_JOBS
 ctest --test-dir build/valgrind --output-on-failure
 
 echo "=============================="
-echo " ALL CHECKS PASSED"
+echo " Python Tools Tests"
 echo "=============================="
+
+source venv/bin/activate
+pytest tests/ -v
+
+echo -e "\n\033[32m ALL CHECKS PASSED \033[0m\n"

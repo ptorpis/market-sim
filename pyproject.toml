@@ -1,0 +1,23 @@
+[project]
+name = "market-sim"
+version = "0.1.0"
+description = "Market simulation tools"
+requires-python = ">=3.10"
+dependencies = [
+    "sortedcontainers",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[project.scripts]
+visualize-book = "tools.visualize_book:main"
+
+[tool.setuptools.packages.find]
+include = ["tools*"]
+
+[tool.pyright]
+reportPrivateUsage = false
