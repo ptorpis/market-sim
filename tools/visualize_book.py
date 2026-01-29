@@ -2,7 +2,44 @@
 """
 Order book visualizer for market-sim deltas.csv output.
 
-Reconstructs order book state at any timestamp by replaying deltas.
+Reconstructs and navigates order book state at any timestamp by replaying
+delta events. Supports interactive stepping through time with efficient
+forward and backward navigation.
+
+Usage:
+    python visualize_book.py deltas.csv                    # Show final state
+    python visualize_book.py deltas.csv --at 1000          # Show state at timestamp 1000
+    python visualize_book.py deltas.csv -i                 # Interactive mode
+    python visualize_book.py deltas.csv --plot             # Show depth chart
+
+Architecture:
+    The tool uses a streaming approach to handle large delta files efficiently:
+
+    1. DeltaIndex: On startup, builds a lightweight index mapping timestamps to
+       byte offsets in the file. This requires a single pass through the file
+       but stores only O(unique timestamps) data, not the deltas themselves.
+
+    2. On-demand reading: When navigating to a timestamp, deltas are read
+       directly from the file by seeking to the stored byte offset, avoiding
+       full file scans for sequential navigation.
+
+    3. Reverse deltas: Stepping backward applies inverse operations to undo
+       deltas, enabling O(d) backward steps instead of O(N) rebuilds. This
+       reduces sequential backward traversal from O(N^2) to O(N).
+
+    4. order_add_timestamps: Tracks when each order was originally added,
+       allowing correct timestamp restoration when reversing FILL, CANCEL,
+       and MODIFY operations.
+
+Complexity:
+    - Build index:              O(N) single pass
+    - Jump to timestamp:        O(N) rebuild from start
+    - Step forward:             O(d) apply deltas at next timestamp
+    - Step backward:            O(d) reverse deltas at current timestamp
+    - Sequential forward scan:  O(N)
+    - Sequential backward scan: O(N) with reverse deltas
+
+    Where N = total deltas, d = deltas at one timestamp.
 """
 
 import argparse
@@ -45,6 +82,7 @@ class OrderBook:
         self.asks = SortedDict()
         self.bids = SortedDict(lambda x: -x)
         self.registry: dict[int, tuple[int, Side]] = {}
+        self.order_add_timestamps: dict[int, int] = {}
         self.timestamp = 0
 
     def _get_book(self, side: Side) -> SortedDict:
@@ -55,6 +93,24 @@ class OrderBook:
         if order.price not in book:
             book[order.price] = deque()
         book[order.price].append(order)
+        self.registry[order.order_id] = (order.price, order.side)
+
+    def _add_order_sorted(self, order: Order) -> None:
+        """Add order in correct queue position based on timestamp (FIFO order)."""
+        book = self._get_book(order.side)
+        if order.price not in book:
+            book[order.price] = deque()
+            book[order.price].append(order)
+        else:
+            queue = book[order.price]
+            # Find correct position: orders added earlier should be ahead
+            insert_pos = 0
+            for i, existing in enumerate(queue):
+                if existing.timestamp > order.timestamp:
+                    insert_pos = i
+                    break
+                insert_pos = i + 1
+            queue.insert(insert_pos, order)
         self.registry[order.order_id] = (order.price, order.side)
 
     def _remove_order(self, order_id: int) -> Optional[Order]:
@@ -96,6 +152,12 @@ class OrderBook:
                 return
 
     def apply_delta(self, delta: dict) -> None:
+        """
+        Apply a forward delta to update the order book state.
+
+        Handles ADD, FILL, CANCEL, and MODIFY delta types. Updates the book's
+        timestamp and tracks order creation times for reverse delta support.
+        """
         self.timestamp = int(delta["timestamp"])
         delta_type = delta["delta_type"]
         order_id = int(delta["order_id"])
@@ -107,6 +169,7 @@ class OrderBook:
         if delta_type == "ADD":
             order = Order(order_id, client_id, side, price, remaining, self.timestamp)
             self._add_order(order)
+            self.order_add_timestamps[order_id] = self.timestamp
 
         elif delta_type == "FILL":
             if remaining == 0:
@@ -127,6 +190,63 @@ class OrderBook:
                 new_order_id, client_id, side, new_price, new_quantity, self.timestamp
             )
             self._add_order(new_order)
+            self.order_add_timestamps[new_order_id] = self.timestamp
+
+    def apply_reverse_delta(self, delta: dict, prev_timestamp: int) -> None:
+        """
+        Apply a reverse delta to revert the order book to its previous state.
+
+        Undoes the effect of a forward delta by performing the inverse operation.
+        For ADD, removes the order. For FILL, restores the previous quantity or
+        re-adds fully filled orders. For CANCEL, re-adds the order. For MODIFY,
+        removes the new order and restores the original.
+
+        Args:
+            delta: The delta dict to reverse.
+            prev_timestamp: The timestamp to restore the book to.
+        """
+        delta_type = delta["delta_type"]
+        order_id = int(delta["order_id"])
+        side = Side(delta["side"])
+        price = int(delta["price"])
+        quantity = int(delta["quantity"])
+        remaining = int(delta["remaining_qty"])
+        client_id = int(delta["client_id"])
+
+        if delta_type == "ADD":
+            self._remove_order(order_id)
+            self.order_add_timestamps.pop(order_id, None)
+
+        elif delta_type == "FILL":
+            prev_quantity = remaining + quantity
+            if remaining == 0:
+                # Only re-add if this order was previously in the book.
+                # Aggressor orders that matched immediately were never added
+                # and should not be restored.
+                if order_id in self.order_add_timestamps:
+                    orig_ts = self.order_add_timestamps[order_id]
+                    order = Order(order_id, client_id, side, price, prev_quantity, orig_ts)
+                    # Insert in correct position based on timestamp (FIFO order)
+                    self._add_order_sorted(order)
+            else:
+                self._update_order_quantity(order_id, prev_quantity)
+
+        elif delta_type == "CANCEL":
+            orig_ts = self.order_add_timestamps.get(order_id, prev_timestamp)
+            order = Order(order_id, client_id, side, price, remaining, orig_ts)
+            self._add_order_sorted(order)
+
+        elif delta_type == "MODIFY":
+            new_order_id = int(delta["new_order_id"])
+
+            self._remove_order(new_order_id)
+            self.order_add_timestamps.pop(new_order_id, None)
+
+            orig_ts = self.order_add_timestamps.get(order_id, prev_timestamp)
+            order = Order(order_id, client_id, side, price, quantity, orig_ts)
+            self._add_order_sorted(order)
+
+        self.timestamp = prev_timestamp
 
     def get_order(self, order_id: int) -> Optional[Order]:
         if order_id not in self.registry:
@@ -256,13 +376,122 @@ class OrderBook:
 
 
 def read_deltas(path: str):
+    """Yield delta dicts from a CSV file using the standard csv.DictReader."""
     with open(path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             yield row
 
 
+class DeltaIndex:
+    """
+    Lightweight index for streaming navigation through a deltas file.
+
+    Builds an index mapping timestamp indices to byte offsets in the file,
+    allowing on-demand reading without loading everything into memory.
+    """
+
+    def __init__(self, path: str):
+        self.path = path
+        self.timestamps: list[int] = []
+        self._offsets: list[int] = []
+        self._header_end: int = 0
+        self._fieldnames: list[str] = []
+        self._build_index()
+
+    def _build_index(self) -> None:
+        """
+        Build the timestamp-to-offset index with a single pass through the file.
+
+        Stores byte offsets for the first line of each unique timestamp,
+        enabling efficient seeking for on-demand delta reading.
+        """
+        with open(self.path, "r", encoding="utf-8") as f:
+            header_line = f.readline()
+            self._header_end = f.tell()
+            self._fieldnames = header_line.strip().split(",")
+
+            current_ts: Optional[int] = None
+            while True:
+                offset = f.tell()
+                line = f.readline()
+                if not line:
+                    break
+
+                ts = int(line.split(",", 1)[0])
+                if ts != current_ts:
+                    self.timestamps.append(ts)
+                    self._offsets.append(offset)
+                    current_ts = ts
+
+    def __len__(self) -> int:
+        return len(self.timestamps)
+
+    def read_deltas_at_index(self, idx: int) -> list[dict]:
+        """
+        Read all deltas for the timestamp at the given index.
+
+        Seeks directly to the stored byte offset and reads until the timestamp
+        changes, avoiding a full file scan.
+        """
+        if idx < 0 or idx >= len(self.timestamps):
+            return []
+
+        target_ts = self.timestamps[idx]
+        start_offset = self._offsets[idx]
+
+        results = []
+        with open(self.path, "r", encoding="utf-8") as f:
+            f.seek(start_offset)
+            while True:
+                line = f.readline()
+                if not line:
+                    break
+                parts = line.strip().split(",")
+                ts = int(parts[0])
+                if ts != target_ts:
+                    break
+                results.append(dict(zip(self._fieldnames, parts)))
+        return results
+
+    def read_deltas_up_to_index(self, idx: int):
+        """
+        Yield all deltas from the start of the file up to and including the given index.
+
+        Used for rebuilding the order book from scratch when jumping to a
+        non-adjacent timestamp.
+        """
+        if idx < 0 or idx >= len(self.timestamps):
+            return
+
+        end_ts = self.timestamps[idx]
+        with open(self.path, "r", encoding="utf-8") as f:
+            f.seek(self._header_end)
+            while True:
+                line = f.readline()
+                if not line:
+                    break
+                parts = line.strip().split(",")
+                ts = int(parts[0])
+                if ts > end_ts:
+                    break
+                yield dict(zip(self._fieldnames, parts))
+
+    def find_timestamp_index(self, target_ts: int) -> int:
+        """
+        Find the index of a timestamp, or the closest timestamp if not found.
+
+        Returns the exact index if the timestamp exists, otherwise returns
+        the index of the timestamp with minimum absolute difference.
+        """
+        if target_ts in self.timestamps:
+            return self.timestamps.index(target_ts)
+        closest = min(self.timestamps, key=lambda t: abs(t - target_ts))
+        return self.timestamps.index(closest)
+
+
 def reconstruct_at(deltas_path: str, target_timestamp: int) -> OrderBook:
+    """Reconstruct the order book state at a specific timestamp by replaying deltas."""
     book = OrderBook()
     for delta in read_deltas(deltas_path):
         if int(delta["timestamp"]) > target_timestamp:
@@ -272,6 +501,7 @@ def reconstruct_at(deltas_path: str, target_timestamp: int) -> OrderBook:
 
 
 def get_all_timestamps(deltas_path: str) -> list[int]:
+    """Return a sorted list of all unique timestamps in the deltas file."""
     timestamps = set()
     for delta in read_deltas(deltas_path):
         timestamps.add(int(delta["timestamp"]))
@@ -279,6 +509,7 @@ def get_all_timestamps(deltas_path: str) -> list[int]:
 
 
 def print_commands() -> None:
+    """Print the available interactive mode commands."""
     print("Commands:")
     print("  <timestamp>          - Jump to timestamp")
     print("  n                    - Next timestamp")
@@ -290,23 +521,39 @@ def print_commands() -> None:
 
 
 def interactive_mode(deltas_path: str) -> None:
-    timestamps = get_all_timestamps(deltas_path)
-    if not timestamps:
+    """
+    Run an interactive session for navigating the order book through time.
+
+    Builds a lightweight index on startup, then allows stepping forward/backward
+    through timestamps or jumping to specific points. Uses streaming reads and
+    reverse deltas to minimize memory usage.
+    """
+    print("Building index...")
+    index = DeltaIndex(deltas_path)
+    if len(index) == 0:
         print("No deltas found in file.")
         return
 
     print(
-        f"Found {len(timestamps)} unique timestamps: {timestamps[0]} to {timestamps[-1]}"
+        f"Found {len(index)} unique timestamps: "
+        f"{index.timestamps[0]} to {index.timestamps[-1]}"
     )
     print_commands()
 
+    def rebuild_to_index(target_idx: int) -> OrderBook:
+        """Rebuild the order book from scratch by streaming up to target index."""
+        new_book = OrderBook()
+        for delta in index.read_deltas_up_to_index(target_idx):
+            new_book.apply_delta(delta)
+        return new_book
+
     idx = 0
-    book = None
+    book = rebuild_to_index(0)
+    current_deltas: list[dict] = index.read_deltas_at_index(0)
+
     while True:
-        if book is None or book.timestamp != timestamps[idx]:
-            book = reconstruct_at(deltas_path, timestamps[idx])
         book.print_book()
-        print(f"\n[{idx + 1}/{len(timestamps)}] Timestamp: {timestamps[idx]}")
+        print(f"\n[{idx + 1}/{len(index)}] Timestamp: {index.timestamps[idx]}")
 
         try:
             cmd = input("> ").strip()
@@ -320,9 +567,19 @@ def interactive_mode(deltas_path: str) -> None:
         if parts[0].lower() == "q":
             break
         elif parts[0].lower() == "n":
-            idx = min(idx + 1, len(timestamps) - 1)
+            if idx < len(index) - 1:
+                idx += 1
+                current_deltas = index.read_deltas_at_index(idx)
+                for delta in current_deltas:
+                    book.apply_delta(delta)
         elif parts[0].lower() == "p":
-            idx = max(idx - 1, 0)
+            if idx > 0:
+                prev_ts = index.timestamps[idx - 1]
+                for delta in reversed(current_deltas):
+                    book.apply_reverse_delta(delta, prev_ts)
+                idx -= 1
+                current_deltas = index.read_deltas_at_index(idx)
+
         elif parts[0].lower() == "o" and len(parts) == 2:
             try:
                 order_id = int(parts[1])
@@ -347,12 +604,15 @@ def interactive_mode(deltas_path: str) -> None:
                 print("Invalid side or price. Use: l BUY <price> or l SELL <price>")
         elif parts[0].isdigit():
             target = int(parts[0])
-            if target in timestamps:
-                idx = timestamps.index(target)
-            else:
-                closest = min(timestamps, key=lambda t: abs(t - target))
-                idx = timestamps.index(closest)
-                print(f"Timestamp {target} not found, showing closest: {closest}")
+            new_idx = index.find_timestamp_index(target)
+            if index.timestamps[new_idx] != target:
+                print(
+                    f"Timestamp {target} not found, "
+                    f"showing closest: {index.timestamps[new_idx]}"
+                )
+            book = rebuild_to_index(new_idx)
+            current_deltas = index.read_deltas_at_index(new_idx)
+            idx = new_idx
         elif parts[0].lower() == "h":
             print_commands()
         else:
@@ -360,7 +620,12 @@ def interactive_mode(deltas_path: str) -> None:
 
 
 def plot_depth(book: OrderBook, output_path: Optional[str] = None) -> None:
+    """
+    Plot the order book depth chart showing cumulative bid/ask quantities.
 
+    Displays bids in green and asks in red as step functions. If output_path
+    is provided, saves to file instead of displaying interactively.
+    """
     bid_levels, ask_levels = book.get_full_depth()
 
     if not bid_levels and not ask_levels:
@@ -403,7 +668,8 @@ def plot_depth(book: OrderBook, output_path: Optional[str] = None) -> None:
         plt.show()
 
 
-def main():
+def main() -> None:
+    """Entry point for the order book visualizer CLI."""
     parser = argparse.ArgumentParser(
         description="Visualize order book from market-sim deltas.csv"
     )
