@@ -15,7 +15,7 @@ import tempfile
 
 import pytest
 
-from visualize_book import (
+from tools.visualize_book import (
     DeltaIndex,
     Order,
     OrderBook,
