@@ -14,6 +14,8 @@ from typing import Optional
 
 from sortedcontainers import SortedDict
 
+import matplotlib.pyplot as plt
+
 
 class Side(Enum):
     BUY = "BUY"
@@ -39,12 +41,12 @@ class OrderBook:
     """
 
     def __init__(self):
-        self.asks: SortedDict[int, deque[Order]] = SortedDict()
-        self.bids: SortedDict[int, deque[Order]] = SortedDict(lambda x: -x)
+        self.asks = SortedDict()
+        self.bids = SortedDict(lambda x: -x)
         self.registry: dict[int, tuple[int, Side]] = {}
         self.timestamp = 0
 
-    def _get_book(self, side: Side) -> SortedDict[int, deque[Order]]:
+    def _get_book(self, side: Side) -> SortedDict:
         return self.bids if side == Side.BUY else self.asks
 
     def _add_order(self, order: Order) -> None:
@@ -191,15 +193,15 @@ class OrderBook:
         return bid_levels, ask_levels
 
     def get_full_depth(self) -> tuple[list, list]:
-        bid_levels = []
-        for price in self.bids.keys():
-            total_qty = sum(o.quantity for o in self.bids[price])
-            bid_levels.append((price, total_qty))
+        bid_levels = [
+            (price, sum(o.quantity for o in level))
+            for price, level in self.bids.items()
+        ]
 
-        ask_levels = []
-        for price in self.asks.keys():
-            total_qty = sum(o.quantity for o in self.asks[price])
-            ask_levels.append((price, total_qty))
+        ask_levels = [
+            (price, sum(o.quantity for o in level))
+            for price, level in self.asks.items()
+        ]
 
         return bid_levels, ask_levels
 
@@ -251,7 +253,7 @@ class OrderBook:
 
 
 def read_deltas(path: str):
-    with open(path, "r") as f:
+    with open(path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             yield row
@@ -279,7 +281,9 @@ def interactive_mode(deltas_path: str) -> None:
         print("No deltas found in file.")
         return
 
-    print(f"Found {len(timestamps)} unique timestamps: {timestamps[0]} to {timestamps[-1]}")
+    print(
+        f"Found {len(timestamps)} unique timestamps: {timestamps[0]} to {timestamps[-1]}"
+    )
     print("Commands:")
     print("  <timestamp>       - Jump to timestamp")
     print("  n                 - Next timestamp")
@@ -345,11 +349,6 @@ def interactive_mode(deltas_path: str) -> None:
 
 
 def plot_depth(book: OrderBook, output_path: Optional[str] = None) -> None:
-    try:
-        import matplotlib.pyplot as plt
-    except ImportError:
-        print("matplotlib not installed. Install with: pip install matplotlib")
-        return
 
     bid_levels, ask_levels = book.get_full_depth()
 
@@ -357,7 +356,7 @@ def plot_depth(book: OrderBook, output_path: Optional[str] = None) -> None:
         print("Order book is empty, nothing to plot.")
         return
 
-    fig, ax = plt.subplots(figsize=(12, 6))
+    _, ax = plt.subplots(figsize=(12, 6))
 
     if bid_levels:
         bid_prices = [p for p, _ in reversed(bid_levels)]
