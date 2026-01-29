@@ -149,6 +149,11 @@ if(BUILD_TESTS)
         tests/scheduler_tests.cpp
         tests/simulation_engine_tests.cpp
         tests/persistence_tests.cpp
+        tests/strong_type_tests.cpp
+        tests/fair_price_tests.cpp
+        tests/config_loader_tests.cpp
+        tests/pnl_tests.cpp
+        tests/market_maker_tests.cpp
     )
 
     target_link_libraries(all_tests
