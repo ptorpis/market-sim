@@ -13,7 +13,9 @@ public:
         deltas_file_.open(output_dir / "deltas.csv");
         trades_file_.open(output_dir / "trades.csv");
         pnl_file_.open(output_dir / "pnl.csv");
-        if (!deltas_file_.is_open() || !trades_file_.is_open() || !pnl_file_.is_open()) {
+        market_state_file_.open(output_dir / "market_state.csv");
+        if (!deltas_file_.is_open() || !trades_file_.is_open() || !pnl_file_.is_open() ||
+            !market_state_file_.is_open()) {
             throw std::runtime_error("Failed to open output files in: " + output_dir.string());
         }
         write_headers();
@@ -48,16 +50,23 @@ public:
                      p.fair_price.value());
     }
 
+    void write_market_state(const MarketStateSnapshot& m) {
+        std::println(market_state_file_, "{},{},{},{}", m.timestamp.value(),
+                     m.fair_price.value(), m.best_bid.value(), m.best_ask.value());
+    }
+
     void flush() {
         deltas_file_.flush();
         trades_file_.flush();
         pnl_file_.flush();
+        market_state_file_.flush();
     }
 
 private:
     std::ofstream deltas_file_;
     std::ofstream trades_file_;
     std::ofstream pnl_file_;
+    std::ofstream market_state_file_;
 
     void write_headers() {
         std::println(deltas_file_,
@@ -71,5 +80,7 @@ private:
 
         std::println(pnl_file_,
                      "timestamp,client_id,long_position,short_position,cash,fair_price");
+
+        std::println(market_state_file_, "timestamp,fair_price,best_bid,best_ask");
     }
 };

@@ -264,6 +264,11 @@ private:
 
             notify_trade(trade, engine_it->second.get());
         }
+
+        if (data_collector_) {
+            data_collector_->on_market_state(scheduler_.now(), fair_price(),
+                                             engine_it->second->order_book());
+        }
     }
 
     void handle(const CancellationSubmitted& event) {
@@ -283,6 +288,8 @@ private:
 
                 if (data_collector_) {
                     data_collector_->on_order_cancelled(cancelled, order_copy);
+                    data_collector_->on_market_state(scheduler_.now(), fair_price(),
+                                                     engine->order_book());
                 }
                 return;
             }
@@ -331,6 +338,12 @@ private:
                                     .price = trade_event.price};
                         notify_trade(trade, engine.get());
                     }
+                }
+
+                // Recor market state after modification
+                if (data_collector_) {
+                    data_collector_->on_market_state(scheduler_.now(), fair_price(),
+                                                     engine->order_book());
                 }
             }
             return;

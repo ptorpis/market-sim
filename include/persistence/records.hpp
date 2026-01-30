@@ -46,6 +46,13 @@ struct PnLSnapshot {
     Price fair_price;
 };
 
+struct MarketStateSnapshot {
+    Timestamp timestamp;
+    Price fair_price;
+    Price best_bid;   // 0 if no bids
+    Price best_ask;   // 0 if no asks
+};
+
 [[nodiscard]] constexpr const char* delta_type_to_string(DeltaType type) {
     switch (type) {
         case DeltaType::ADD: return "ADD";

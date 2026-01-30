@@ -113,6 +113,22 @@ public:
         }
     }
 
+    // Called after book-changing events to record market state
+    void on_market_state(Timestamp now, Price fair_price, const OrderBook& book) {
+        Price best_bid{0};
+        Price best_ask{0};
+
+        if (!book.bids.empty()) {
+            best_bid = book.bids.begin()->first;
+        }
+        if (!book.asks.empty()) {
+            best_ask = book.asks.begin()->first;
+        }
+
+        csv_writer_.write_market_state(MarketStateSnapshot{
+            .timestamp = now, .fair_price = fair_price, .best_bid = best_bid, .best_ask = best_ask});
+    }
+
     MetadataWriter& metadata() { return metadata_; }
 
     void finalize(Timestamp duration) {
