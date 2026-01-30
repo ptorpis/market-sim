@@ -1,11 +1,13 @@
 {
   "simulation": {
     "latency": 10,
-    "duration": 1000,
+    "duration": 1000000,
     "output_dir": "./output",
     "pnl_snapshot_interval": 100
   },
-  "instruments": [1],
+  "instruments": [
+    1
+  ],
   "fair_price": {
     "initial_price": 1000000,
     "drift": 0.0001,
