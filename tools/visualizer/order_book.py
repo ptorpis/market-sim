@@ -285,8 +285,11 @@ class OrderBook:
 
         return bid_levels, ask_levels
 
-    def print_book(self, levels: int = 10) -> None:
-        bid_levels, ask_levels = self.get_depth(levels)
+    def print_book(self, levels: Optional[int] = 10) -> None:
+        if levels is None:
+            bid_levels, ask_levels = self.get_full_depth()
+        else:
+            bid_levels, ask_levels = self.get_depth(levels)
 
         print(f"\n{'=' * 47}")
         print(f" ORDER BOOK at timestamp {self.timestamp}")

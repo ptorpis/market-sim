@@ -199,7 +199,7 @@ def print_commands() -> None:
     print("  h                    - Print commands available")
 
 
-def interactive_mode(deltas_path: str) -> None:
+def interactive_mode(deltas_path: str, levels: Optional[int]) -> None:
     """
     Run an interactive session for navigating the order book through time.
 
@@ -231,7 +231,7 @@ def interactive_mode(deltas_path: str) -> None:
     current_deltas: list[dict] = index.read_deltas_at_index(0)
 
     while True:
-        book.print_book()
+        book.print_book(levels)
         print(f"\n[{idx + 1}/{len(index)}] Timestamp: {index.timestamps[idx]}")
 
         try:
@@ -355,6 +355,18 @@ def plot_depth(book: OrderBook, output_path: Optional[str] = None) -> None:
         plt.show()
 
 
+def parse_levels(value: str) -> int | None:
+    """Parse the --levels argument, accepting either an integer or 'max'."""
+    if value.lower() == "max":
+        return None
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            f"'{value}' is not a valid level count (exception={exc}) (use an integer or 'max')"
+        )
+
+
 def main() -> None:
     """Entry point for the order book visualizer CLI."""
     parser = argparse.ArgumentParser(
@@ -385,15 +397,15 @@ def main() -> None:
     )
     parser.add_argument(
         "--levels",
-        type=int,
+        type=parse_levels,
         default=10,
-        help="Number of price levels to show (default: 10)",
+        help="Number of price levels to show (default: 10, use 'max' for all)",
     )
 
     args = parser.parse_args()
 
     if args.interactive:
-        interactive_mode(args.deltas_file)
+        interactive_mode(args.deltas_file, args.levels)
     elif args.at is not None:
         book = reconstruct_at(args.deltas_file, args.at)
         book.print_book(args.levels)

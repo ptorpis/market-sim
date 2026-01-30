@@ -90,7 +90,6 @@ class StateComparator:
         differences = []
         side_name = "bid" if side == Side.BUY else "ask"
 
-        # Get Python price levels in correct order
         py_prices = list(py_book_side.keys())
 
         if len(cpp_levels) != len(py_prices):
@@ -99,7 +98,6 @@ class StateComparator:
                 f"C++={len(cpp_levels)}, Py={len(py_prices)}"
             )
 
-        # Compare level by level
         for i, cpp_level in enumerate(cpp_levels):
             cpp_price = cpp_level["price"]
             cpp_orders = cpp_level["orders"]
@@ -119,7 +117,6 @@ class StateComparator:
                 )
                 continue
 
-            # Get Python orders at this price level
             py_orders = list(py_book_side[py_price])
 
             if len(cpp_orders) != len(py_orders):
@@ -129,7 +126,6 @@ class StateComparator:
                 )
                 continue
 
-            # Compare order by order (FIFO order matters!)
             for j, (cpp_order, py_order) in enumerate(zip(cpp_orders, py_orders)):
                 order_diffs = self._compare_orders(
                     cpp_order,
@@ -138,7 +134,6 @@ class StateComparator:
                 )
                 differences.extend(order_diffs)
 
-        # Check for extra Python levels
         for i in range(len(cpp_levels), len(py_prices)):
             py_price = py_prices[i]
             differences.append(
@@ -165,7 +160,6 @@ class StateComparator:
             if cpp_val != py_val:
                 diffs.append(f"{context}.{field_name}: C++={cpp_val}, Py={py_val}")
 
-        # Compare side
         cpp_side = cpp_order.get("side")
         py_side = py_order.side.value
         if cpp_side != py_side:
@@ -247,7 +241,6 @@ class StateComparator:
         if only_py:
             all_diffs.append(f"Order books only in Py: {only_py}")
 
-        # Compare each instrument's order book
         for inst_id in cpp_instruments & py_instruments:
             cpp_book = cpp_books[str(inst_id)]
             py_book = py_books[inst_id]
@@ -255,7 +248,6 @@ class StateComparator:
             book_diffs = self.compare_order_books(cpp_book, py_book, inst_id)
             all_diffs.extend(book_diffs)
 
-        # Compare P&L
         cpp_pnl = cpp_state.get("pnl", {})
         pnl_diffs = self.compare_pnl(cpp_pnl, py_pnl)
         all_diffs.extend(pnl_diffs)
