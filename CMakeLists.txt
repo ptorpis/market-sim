@@ -136,6 +136,18 @@ add_executable(MarketSimulator
 target_link_libraries(MarketSimulator PRIVATE SimCore)
 
 # ==========================
+# Test Infrastructure Library
+# ==========================
+
+add_library(TestInfra
+    src/testing/state_exporter.cpp
+    src/testing/test_harness.cpp
+)
+
+target_include_directories(TestInfra PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(TestInfra PUBLIC SimCore nlohmann_json::nlohmann_json)
+
+# ==========================
 # Tests
 # ==========================
 
@@ -162,6 +174,16 @@ if(BUILD_TESTS)
         GTest::gtest_main
     )
 
+    add_executable(cross_validation_tests
+        tests/cross_validation_tests.cpp
+    )
+
+    target_link_libraries(cross_validation_tests
+        PRIVATE TestInfra
+        GTest::gtest
+        GTest::gtest_main
+    )
+
     include(GoogleTest)
 
     if(ENABLE_VALGRIND)
@@ -178,6 +200,7 @@ if(BUILD_TESTS)
     else()
 
         gtest_discover_tests(all_tests)
+        gtest_discover_tests(cross_validation_tests)
 
     endif()
 
