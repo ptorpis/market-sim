@@ -31,6 +31,7 @@ protected:
     void SetUp() override {
         MarketMakerConfig config{
             .instrument = InstrumentID{1},
+            .observation_noise = 0.0,
             .half_spread = Price{5},
             .quote_size = Quantity{50},
             .update_interval = Timestamp{100},

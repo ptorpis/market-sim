@@ -43,23 +43,25 @@ TEST(ConfigLoaderTest, FairPriceConfigMissingFieldThrows) {
 TEST(ConfigLoaderTest, ParseNoiseTraderConfig) {
     json j = {
         {"instrument", 1},
-        {"fair_value", 1000000},
+        {"observation_noise", 50.0},
         {"spread", 36},
         {"min_quantity", 10},
         {"max_quantity", 100},
         {"min_interval", 50},
-        {"max_interval", 200}
+        {"max_interval", 200},
+        {"stale_order_threshold", 100}
     };
 
     NoiseTraderConfig config = j.get<NoiseTraderConfig>();
 
     EXPECT_EQ(config.instrument, InstrumentID{1});
-    EXPECT_EQ(config.fair_value, Price{1000000});
+    EXPECT_DOUBLE_EQ(config.observation_noise, 50.0);
     EXPECT_EQ(config.spread, Price{36});
     EXPECT_EQ(config.min_quantity, Quantity{10});
     EXPECT_EQ(config.max_quantity, Quantity{100});
     EXPECT_EQ(config.min_interval, Timestamp{50});
     EXPECT_EQ(config.max_interval, Timestamp{200});
+    EXPECT_EQ(config.stale_order_threshold, Price{100});
 }
 
 // =============================================================================
@@ -69,6 +71,7 @@ TEST(ConfigLoaderTest, ParseNoiseTraderConfig) {
 TEST(ConfigLoaderTest, ParseMarketMakerConfig) {
     json j = {
         {"instrument", 1},
+        {"observation_noise", 10.0},
         {"half_spread", 5},
         {"quote_size", 50},
         {"update_interval", 100},
@@ -79,6 +82,7 @@ TEST(ConfigLoaderTest, ParseMarketMakerConfig) {
     MarketMakerConfig config = j.get<MarketMakerConfig>();
 
     EXPECT_EQ(config.instrument, InstrumentID{1});
+    EXPECT_DOUBLE_EQ(config.observation_noise, 10.0);
     EXPECT_EQ(config.half_spread, Price{5});
     EXPECT_EQ(config.quote_size, Quantity{50});
     EXPECT_EQ(config.update_interval, Timestamp{100});
@@ -98,7 +102,8 @@ TEST(ConfigLoaderTest, ParseInformedTraderConfig) {
         {"min_interval", 100},
         {"max_interval", 500},
         {"min_edge", 3},
-        {"observation_noise", 5.0}
+        {"observation_noise", 5.0},
+        {"stale_order_threshold", 50}
     };
 
     InformedTraderConfig config = j.get<InformedTraderConfig>();
@@ -110,6 +115,7 @@ TEST(ConfigLoaderTest, ParseInformedTraderConfig) {
     EXPECT_EQ(config.max_interval, Timestamp{500});
     EXPECT_EQ(config.min_edge, Price{3});
     EXPECT_DOUBLE_EQ(config.observation_noise, 5.0);
+    EXPECT_EQ(config.stale_order_threshold, Price{50});
 }
 
 // =============================================================================
@@ -157,12 +163,13 @@ TEST(ConfigLoaderTest, ParseAgentConfigNoiseTrader) {
         {"seed", 100},
         {"config", {
             {"instrument", 1},
-            {"fair_value", 1000000},
+            {"observation_noise", 50.0},
             {"spread", 36},
             {"min_quantity", 10},
             {"max_quantity", 100},
             {"min_interval", 50},
-            {"max_interval", 200}
+            {"max_interval", 200},
+            {"stale_order_threshold", 100}
         }}
     };
 
@@ -183,6 +190,7 @@ TEST(ConfigLoaderTest, ParseAgentConfigMarketMaker) {
         {"seed", 999},
         {"config", {
             {"instrument", 1},
+            {"observation_noise", 10.0},
             {"half_spread", 5},
             {"quote_size", 50},
             {"update_interval", 100},
@@ -211,7 +219,8 @@ TEST(ConfigLoaderTest, ParseAgentConfigInformedTrader) {
             {"min_interval", 100},
             {"max_interval", 500},
             {"min_edge", 3},
-            {"observation_noise", 5.0}
+            {"observation_noise", 5.0},
+            {"stale_order_threshold", 50}
         }}
     };
 
@@ -296,12 +305,13 @@ TEST(ConfigLoaderTest, SimulationConfigWithAgentsAndOrders) {
                 {"seed", 100},
                 {"config", {
                     {"instrument", 1},
-                    {"fair_value", 1000000},
+                    {"observation_noise", 50.0},
                     {"spread", 36},
                     {"min_quantity", 10},
                     {"max_quantity", 100},
                     {"min_interval", 50},
-                    {"max_interval", 200}
+                    {"max_interval", 200},
+                    {"stale_order_threshold", 100}
                 }}
             }
         }},

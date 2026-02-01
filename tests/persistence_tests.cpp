@@ -597,25 +597,28 @@ TEST_F(PersistenceTest, DataCollectorMetadataAccess) {
 
 TEST_F(PersistenceTest, NoiseTraderConfigToJson) {
     NoiseTraderConfig config{.instrument = InstrumentID{1},
-                             .fair_value = Price{1000000},
+                             .observation_noise = 50.0,
                              .spread = Price{36},
                              .min_quantity = Quantity{10},
                              .max_quantity = Quantity{100},
                              .min_interval = Timestamp{50},
-                             .max_interval = Timestamp{200}};
+                             .max_interval = Timestamp{200},
+                             .stale_order_threshold = Price{100}};
 
     nlohmann::json j = to_json(config);
     EXPECT_EQ(j["instrument"], 1);
-    EXPECT_EQ(j["fair_value"], 1000000);
+    EXPECT_DOUBLE_EQ(j["observation_noise"], 50.0);
     EXPECT_EQ(j["spread"], 36);
     EXPECT_EQ(j["min_quantity"], 10);
     EXPECT_EQ(j["max_quantity"], 100);
     EXPECT_EQ(j["min_interval"], 50);
     EXPECT_EQ(j["max_interval"], 200);
+    EXPECT_EQ(j["stale_order_threshold"], 100);
 }
 
 TEST_F(PersistenceTest, MarketMakerConfigToJson) {
     MarketMakerConfig config{.instrument = InstrumentID{1},
+                             .observation_noise = 10.0,
                              .half_spread = Price{5},
                              .quote_size = Quantity{50},
                              .update_interval = Timestamp{100},
@@ -624,6 +627,7 @@ TEST_F(PersistenceTest, MarketMakerConfigToJson) {
 
     nlohmann::json j = to_json(config);
     EXPECT_EQ(j["instrument"], 1);
+    EXPECT_DOUBLE_EQ(j["observation_noise"], 10.0);
     EXPECT_EQ(j["half_spread"], 5);
     EXPECT_EQ(j["quote_size"], 50);
     EXPECT_EQ(j["update_interval"], 100);
@@ -638,7 +642,8 @@ TEST_F(PersistenceTest, InformedTraderConfigToJson) {
                                 .min_interval = Timestamp{100},
                                 .max_interval = Timestamp{500},
                                 .min_edge = Price{3},
-                                .observation_noise = 5.0};
+                                .observation_noise = 5.0,
+                                .stale_order_threshold = Price{50}};
 
     nlohmann::json j = to_json(config);
     EXPECT_EQ(j["instrument"], 1);
@@ -648,6 +653,7 @@ TEST_F(PersistenceTest, InformedTraderConfigToJson) {
     EXPECT_EQ(j["max_interval"], 500);
     EXPECT_EQ(j["min_edge"], 3);
     EXPECT_DOUBLE_EQ(j["observation_noise"], 5.0);
+    EXPECT_EQ(j["stale_order_threshold"], 50);
 }
 
 TEST_F(PersistenceTest, FairPriceConfigToJson) {

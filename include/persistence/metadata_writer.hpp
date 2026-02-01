@@ -12,16 +12,18 @@
 // JSON serialization for config types
 inline nlohmann::json to_json(const NoiseTraderConfig& c) {
     return {{"instrument", c.instrument.value()},
-            {"fair_value", c.fair_value.value()},
+            {"observation_noise", c.observation_noise},
             {"spread", c.spread.value()},
             {"min_quantity", c.min_quantity.value()},
             {"max_quantity", c.max_quantity.value()},
             {"min_interval", c.min_interval.value()},
-            {"max_interval", c.max_interval.value()}};
+            {"max_interval", c.max_interval.value()},
+            {"stale_order_threshold", c.stale_order_threshold.value()}};
 }
 
 inline nlohmann::json to_json(const MarketMakerConfig& c) {
     return {{"instrument", c.instrument.value()},
+            {"observation_noise", c.observation_noise},
             {"half_spread", c.half_spread.value()},
             {"quote_size", c.quote_size.value()},
             {"update_interval", c.update_interval.value()},
@@ -36,7 +38,8 @@ inline nlohmann::json to_json(const InformedTraderConfig& c) {
             {"min_interval", c.min_interval.value()},
             {"max_interval", c.max_interval.value()},
             {"min_edge", c.min_edge.value()},
-            {"observation_noise", c.observation_noise}};
+            {"observation_noise", c.observation_noise},
+            {"stale_order_threshold", c.stale_order_threshold.value()}};
 }
 
 inline nlohmann::json to_json(const FairPriceConfig& c) {

@@ -23,12 +23,13 @@
       "seed": 100,
       "config": {
         "instrument": 1,
-        "fair_value": 1000000,
+        "observation_noise": 50.0,
         "spread": 36,
         "min_quantity": 10,
         "max_quantity": 100,
         "min_interval": 50,
-        "max_interval": 200
+        "max_interval": 200,
+        "stale_order_threshold": 100
       }
     },
     {
@@ -38,12 +39,13 @@
       "seed": 200,
       "config": {
         "instrument": 1,
-        "fair_value": 1000000,
+        "observation_noise": 50.0,
         "spread": 36,
         "min_quantity": 10,
         "max_quantity": 100,
         "min_interval": 50,
-        "max_interval": 200
+        "max_interval": 200,
+        "stale_order_threshold": 100
       }
     },
     {
@@ -53,12 +55,13 @@
       "seed": 300,
       "config": {
         "instrument": 1,
-        "fair_value": 1000000,
+        "observation_noise": 50.0,
         "spread": 36,
         "min_quantity": 10,
         "max_quantity": 100,
         "min_interval": 50,
-        "max_interval": 200
+        "max_interval": 200,
+        "stale_order_threshold": 100
       }
     },
     {
@@ -68,12 +71,13 @@
       "seed": 400,
       "config": {
         "instrument": 1,
-        "fair_value": 1000000,
+        "observation_noise": 50.0,
         "spread": 36,
         "min_quantity": 10,
         "max_quantity": 100,
         "min_interval": 50,
-        "max_interval": 200
+        "max_interval": 200,
+        "stale_order_threshold": 100
       }
     },
     {
@@ -83,12 +87,13 @@
       "seed": 500,
       "config": {
         "instrument": 1,
-        "fair_value": 1000000,
+        "observation_noise": 50.0,
         "spread": 36,
         "min_quantity": 10,
         "max_quantity": 100,
         "min_interval": 50,
-        "max_interval": 200
+        "max_interval": 200,
+        "stale_order_threshold": 100
       }
     },
     {
@@ -98,6 +103,7 @@
       "seed": 999,
       "config": {
         "instrument": 1,
+        "observation_noise": 10.0,
         "half_spread": 5,
         "quote_size": 50,
         "update_interval": 100,
@@ -117,7 +123,8 @@
         "min_interval": 100,
         "max_interval": 500,
         "min_edge": 3,
-        "observation_noise": 5.0
+        "observation_noise": 5.0,
+        "stale_order_threshold": 50
       }
     }
   ],

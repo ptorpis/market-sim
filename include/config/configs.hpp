@@ -20,26 +20,29 @@ struct FairPriceConfig {
 
 /**
  * Configuration for noise traders that provide random liquidity.
- * Noise traders submit random limit orders around a fair value with configurable
- * spread, quantity bounds, and wakeup intervals.
+ * Noise traders observe the fair price with noise and submit random limit orders
+ * around it with configurable spread, quantity bounds, and wakeup intervals.
+ * Orders are cancelled when price deviates beyond stale_order_threshold.
  */
 struct NoiseTraderConfig {
     InstrumentID instrument;
-    Price fair_value;
+    double observation_noise;
     Price spread;
     Quantity min_quantity;
     Quantity max_quantity;
     Timestamp min_interval;
     Timestamp max_interval;
+    Price stale_order_threshold;
 };
 
 /**
  * Configuration for market makers that quote on both sides of the book.
- * Market makers adjust their quotes based on inventory position using a skew factor
- * and respect maximum position limits.
+ * Market makers observe the fair price with noise and adjust their quotes based
+ * on inventory position using a skew factor, respecting maximum position limits.
  */
 struct MarketMakerConfig {
     InstrumentID instrument;
+    double observation_noise;
     Price half_spread;
     Quantity quote_size;
     Timestamp update_interval;
@@ -51,6 +54,7 @@ struct MarketMakerConfig {
  * Configuration for informed traders that trade based on fair price observations.
  * Informed traders observe the fair price with noise and trade when they detect
  * sufficient edge relative to the current order book.
+ * Orders are cancelled when price deviates beyond stale_order_threshold.
  */
 struct InformedTraderConfig {
     InstrumentID instrument;
@@ -60,6 +64,7 @@ struct InformedTraderConfig {
     Timestamp max_interval;
     Price min_edge;
     double observation_noise;
+    Price stale_order_threshold;
 };
 
 /**

@@ -5,11 +5,10 @@
 
 #include <algorithm>
 #include <cmath>
-#include <optional>
 #include <random>
 
 /**
- * Quotes bid/ask around the order book midpoint with inventory-based skew.
+ * Quotes bid/ask around an observed fair price with inventory-based skew.
  * Tracks position from fills and adjusts quotes to reduce inventory risk.
  */
 class MarketMaker : public Agent {
@@ -66,15 +65,21 @@ private:
         active_orders_.clear();
     }
 
-    void post_new_quotes(AgentContext& ctx) {
-        const auto& book = ctx.get_order_book(config_.instrument);
-
-        auto midpoint = calculate_midpoint(book);
-        if (!midpoint.has_value()) {
-            return;
+    Price observe_price(AgentContext& ctx) {
+        Price true_price = ctx.fair_price();
+        if (config_.observation_noise <= 0.0) {
+            return true_price;
         }
 
-        double mid = static_cast<double>(midpoint->value());
+        std::normal_distribution<double> noise_dist(0.0, config_.observation_noise);
+        double noisy = static_cast<double>(true_price.value()) + noise_dist(rng_);
+        return Price{static_cast<std::uint64_t>(std::max(1.0, std::round(noisy)))};
+    }
+
+    void post_new_quotes(AgentContext& ctx) {
+        Price observed = observe_price(ctx);
+
+        double mid = static_cast<double>(observed.value());
         double half = static_cast<double>(config_.half_spread.value());
         double skew = static_cast<double>(net_position()) * config_.inventory_skew_factor;
 
@@ -95,16 +100,5 @@ private:
                              Price{static_cast<std::uint64_t>(std::round(ask))}, OrderSide::SELL,
                              OrderType::LIMIT);
         }
-    }
-
-    [[nodiscard]] std::optional<Price> calculate_midpoint(const OrderBook& book) const {
-        if (book.bids.empty() || book.asks.empty()) {
-            return std::nullopt;
-        }
-
-        Price best_bid = book.bids.begin()->first;
-        Price best_ask = book.asks.begin()->first;
-
-        return Price{(best_bid.value() + best_ask.value()) / 2};
     }
 };

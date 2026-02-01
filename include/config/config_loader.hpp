@@ -16,16 +16,18 @@ inline void from_json(const nlohmann::json& j, FairPriceConfig& c) {
 
 inline void from_json(const nlohmann::json& j, NoiseTraderConfig& c) {
     c.instrument = InstrumentID{j.at("instrument").get<std::uint32_t>()};
-    c.fair_value = Price{j.at("fair_value").get<std::uint64_t>()};
+    c.observation_noise = j.at("observation_noise").get<double>();
     c.spread = Price{j.at("spread").get<std::uint64_t>()};
     c.min_quantity = Quantity{j.at("min_quantity").get<std::uint64_t>()};
     c.max_quantity = Quantity{j.at("max_quantity").get<std::uint64_t>()};
     c.min_interval = Timestamp{j.at("min_interval").get<std::uint64_t>()};
     c.max_interval = Timestamp{j.at("max_interval").get<std::uint64_t>()};
+    c.stale_order_threshold = Price{j.at("stale_order_threshold").get<std::uint64_t>()};
 }
 
 inline void from_json(const nlohmann::json& j, MarketMakerConfig& c) {
     c.instrument = InstrumentID{j.at("instrument").get<std::uint32_t>()};
+    c.observation_noise = j.at("observation_noise").get<double>();
     c.half_spread = Price{j.at("half_spread").get<std::uint64_t>()};
     c.quote_size = Quantity{j.at("quote_size").get<std::uint64_t>()};
     c.update_interval = Timestamp{j.at("update_interval").get<std::uint64_t>()};
@@ -41,6 +43,7 @@ inline void from_json(const nlohmann::json& j, InformedTraderConfig& c) {
     c.max_interval = Timestamp{j.at("max_interval").get<std::uint64_t>()};
     c.min_edge = Price{j.at("min_edge").get<std::uint64_t>()};
     c.observation_noise = j.at("observation_noise").get<double>();
+    c.stale_order_threshold = Price{j.at("stale_order_threshold").get<std::uint64_t>()};
 }
 
 inline void from_json(const nlohmann::json& j, AgentConfig& c) {
