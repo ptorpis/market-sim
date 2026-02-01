@@ -8,6 +8,7 @@ This document covers the usage of the main components in the market simulator.
 - [Visualize Book](#visualize-book)
 - [Visualize Timeseries](#visualize-timeseries)
 - [Testing](#testing)
+  - [Cross-Validation Harness](#cross-validation-harness)
 
 ---
 
@@ -226,8 +227,66 @@ ctest --test-dir build/debug --output-on-failure
 # Run visualization tool tests
 pytest tests/test_visualize_book.py -v
 
-# Run cross-validation tests
+# Run cross-validation infrastructure tests
 pytest tests/python/ -v
+```
+
+### Cross-Validation Harness
+
+The cross-validation harness validates that the Python replay engine produces identical state to the C++ simulation. It orchestrates end-to-end testing by:
+
+1. Running C++ `cross_validation_tests` with state export enabled
+2. Replaying deltas in Python for each test scenario
+3. Comparing Python state with C++ exported state
+4. Reporting any differences
+
+```bash
+# Run cross-validation (uses build/debug by default)
+python -m tools.testing.harness
+
+# Specify build directory
+python -m tools.testing.harness --build-dir build/debug
+
+# Verbose output (shows C++ test output)
+python -m tools.testing.harness --build-dir build/debug --verbose
+
+# Keep output directories for inspection
+python -m tools.testing.harness --build-dir build/debug --keep-output
+```
+
+#### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `--build-dir` | Build directory containing `cross_validation_tests` binary |
+| `--verbose`, `-v` | Print detailed progress and C++ output |
+| `--keep-output` | Preserve test output directories for debugging |
+
+#### Example Output
+
+```
+============================================================
+Running C++ cross-validation tests...
+============================================================
+
+============================================================
+Validating test outputs with Python...
+============================================================
+[PASS] test_0 (6 states validated)
+[PASS] test_1 (5 states validated)
+[PASS] test_2 (4 states validated)
+
+============================================================
+Cross-Validation Summary
+============================================================
+Binary: build/debug/cross_validation_tests
+Total tests: 3
+  Passed: 3
+  Failed: 0
+  Errors: 0
+  Skipped: 0
+
+ALL CROSS-VALIDATION TESTS PASSED
 ```
 
 ### Build Variants

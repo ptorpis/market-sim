@@ -84,6 +84,7 @@ def run_cpp_scenario(cpp_test_binary, temp_test_dir):
             text=True,
             cwd=temp_test_dir,
             env={"OUTPUT_DIR": str(output_dir)},
+            check=False,
         )
 
         if result.returncode != 0:

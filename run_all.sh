@@ -53,35 +53,7 @@ echo "=============================="
 # Python cross-validation infrastructure tests
 pytest tests/python/ -v
 
-# End-to-end cross-validation: run C++ scenarios and validate with Python
-CROSS_VAL_BIN=""
-for path in "build/debug/cross_validation_tests" "build/cross_validation_tests"; do
-    if [ -x "$path" ]; then
-        CROSS_VAL_BIN="$path"
-        break
-    fi
-done
-
-if [ -n "$CROSS_VAL_BIN" ]; then
-    echo ""
-    echo "Running end-to-end cross-validation with $CROSS_VAL_BIN..."
-    CROSS_VAL_DIR=$(mktemp -d)
-
-    # Run C++ test harness - exports state to CROSS_VAL_OUTPUT_DIR
-    CROSS_VAL_OUTPUT_DIR="$CROSS_VAL_DIR" "$CROSS_VAL_BIN" \
-        --gtest_filter="*Scenario_*"
-
-    # Validate each test's output with Python
-    for test_output in "$CROSS_VAL_DIR"/test_*; do
-        if [ -d "$test_output/states" ]; then
-            echo "Validating: $(basename "$test_output")"
-            python -m tools.testing.cross_validator "$test_output"
-        fi
-    done
-
-    rm -rf "$CROSS_VAL_DIR"
-else
-    echo "Note: cross_validation_tests binary not found, skipping end-to-end validation"
-fi
+# End-to-end cross-validation using Python harness
+python -m tools.testing.harness --build-dir build/debug
 
 echo -e "\n\033[32m ALL CHECKS PASSED \033[0m\n"

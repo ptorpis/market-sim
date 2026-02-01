@@ -19,5 +19,33 @@ visualize-book = "tools.visualize_book:main"
 [tool.setuptools.packages.find]
 include = ["tools*"]
 
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
 [tool.pyright]
+pythonVersion = "3.12"
+include = ["tools", "tests"]
+extraPaths = ["."]
 reportPrivateUsage = false
+
+[tool.black]
+# Black will look here to know how to format your code
+line-length = 100
+target-version = ['py312'] # Aligning with your pyright config
+
+[tool.ruff]
+# Ruff replaces Flake8 and isort. It reads this config for linting rules.
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# Enable specific rules:
+# E: pycodestyle errors
+# F: Pyflakes (unused imports, variables)
+# I: isort (sorts your imports automatically)
+select = ["E", "F", "I"] 
+ignore = []
+
+[tool.ruff.lint.isort]
+# Tells Ruff how to sort imports to match your project structure
+known-first-party = ["tools"]
