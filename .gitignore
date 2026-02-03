@@ -34,3 +34,5 @@ htmlcov/
 
 .mypy_cache/
 .pytype/
+
+backlog.txt

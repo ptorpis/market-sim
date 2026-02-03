@@ -166,6 +166,8 @@ if(BUILD_TESTS)
         tests/config_loader_tests.cpp
         tests/pnl_tests.cpp
         tests/market_maker_tests.cpp
+        tests/noise_trader_tests.cpp
+        tests/informed_trader_tests.cpp
     )
 
     target_link_libraries(all_tests

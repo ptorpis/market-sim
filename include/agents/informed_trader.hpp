@@ -10,6 +10,9 @@
 #include <random>
 #include <vector>
 
+// Forward declaration for test access
+class InformedTraderTestAccess;
+
 /**
  * Trades based on a noisy observation of the fair price.
  * Buys when observed fair price > best ask + min_edge.
@@ -17,6 +20,8 @@
  * Cancels orders when fair price deviates beyond stale_order_threshold.
  */
 class InformedTrader : public Agent {
+    friend class InformedTraderTestAccess;
+
 public:
     InformedTrader(ClientID id, InformedTraderConfig config, std::uint64_t seed)
         : Agent(id), config_(config), rng_(seed) {}

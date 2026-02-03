@@ -10,12 +10,17 @@
 #include <random>
 #include <vector>
 
+// Forward declaration for test access
+class NoiseTraderTestAccess;
+
 /**
  * Submits random limit orders around an observed fair price.
  * The fair price observation includes configurable noise.
  * Cancels orders when fair price deviates beyond stale_order_threshold.
  */
 class NoiseTrader : public Agent {
+    friend class NoiseTraderTestAccess;
+
 public:
     NoiseTrader(ClientID id, NoiseTraderConfig config, std::uint64_t seed)
         : Agent(id), config_(config), rng_(seed) {}

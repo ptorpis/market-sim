@@ -60,12 +60,18 @@ public:
     }
 
     void set_fair_price(FairPriceConfig config, std::uint64_t seed) {
-        fair_price_.emplace(config, seed);
+        fair_price_ = std::make_unique<FairPriceGenerator>(config, seed);
         fair_price_seed_ = seed;
         if (data_collector_) {
             data_collector_->metadata().set_fair_price(config, seed);
         }
     }
+
+    void set_fair_price_source(std::unique_ptr<IFairPriceSource> source) {
+        fair_price_ = std::move(source);
+    }
+
+    IFairPriceSource* fair_price_source() { return fair_price_.get(); }
 
     void enable_persistence(const std::filesystem::path& output_dir,
                             Timestamp pnl_snapshot_interval = Timestamp{100}) {
@@ -99,7 +105,7 @@ public:
 
         Event event = scheduler_.pop();
 
-        if (fair_price_.has_value()) {
+        if (fair_price_) {
             fair_price_->advance_to(scheduler_.now());
         }
 
@@ -162,7 +168,7 @@ public:
     [[nodiscard]] Timestamp now() const override { return scheduler_.now(); }
 
     [[nodiscard]] Price fair_price() const override {
-        if (!fair_price_.has_value()) {
+        if (!fair_price_) {
             return Price{0};
         }
         return fair_price_->true_price();
@@ -200,7 +206,7 @@ private:
         engines_;
     std::unordered_map<ClientID, std::unique_ptr<Agent>, strong_hash<ClientID>> agents_;
     std::unordered_map<ClientID, PnL, strong_hash<ClientID>> pnl_;
-    std::optional<FairPriceGenerator> fair_price_;
+    std::unique_ptr<IFairPriceSource> fair_price_;
     ClientID current_agent_{0};
     Timestamp latency_;
     std::unordered_map<ClientID, Timestamp, strong_hash<ClientID>> agent_latencies_;
