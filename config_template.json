@@ -100,6 +100,7 @@
       "client_id": 10,
       "type": "MarketMaker",
       "initial_wakeup": 5,
+      "latency": 2,
       "seed": 999,
       "config": {
         "instrument": 1,
@@ -115,6 +116,7 @@
       "client_id": 20,
       "type": "InformedTrader",
       "initial_wakeup": 50,
+      "latency": 5,
       "seed": 777,
       "config": {
         "instrument": 1,

@@ -51,6 +51,9 @@ inline void from_json(const nlohmann::json& j, AgentConfig& c) {
     c.type = j.at("type").get<std::string>();
     c.seed = j.at("seed").get<std::uint64_t>();
     c.initial_wakeup = Timestamp{j.at("initial_wakeup").get<std::uint64_t>()};
+    if (j.contains("latency")) {
+        c.latency = Timestamp{j.at("latency").get<std::uint64_t>()};
+    }
 
     const auto& config = j.at("config");
     if (c.type == "NoiseTrader") {

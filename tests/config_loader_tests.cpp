@@ -340,3 +340,55 @@ TEST(ConfigLoaderTest, SimulationConfigWithAgentsAndOrders) {
 TEST(ConfigLoaderTest, LoadConfigNonexistentFileThrows) {
     EXPECT_THROW(load_config("/nonexistent/path/config.json"), std::runtime_error);
 }
+
+// =============================================================================
+// Per-Agent Latency
+// =============================================================================
+
+TEST(ConfigLoaderTest, ParseAgentConfigWithLatency) {
+    json j = {
+        {"client_id", 1},
+        {"type", "NoiseTrader"},
+        {"initial_wakeup", 10},
+        {"latency", 25},
+        {"seed", 100},
+        {"config", {
+            {"instrument", 1},
+            {"observation_noise", 50.0},
+            {"spread", 36},
+            {"min_quantity", 10},
+            {"max_quantity", 100},
+            {"min_interval", 50},
+            {"max_interval", 200},
+            {"stale_order_threshold", 100}
+        }}
+    };
+
+    AgentConfig config = j.get<AgentConfig>();
+
+    EXPECT_EQ(config.id, ClientID{1});
+    EXPECT_EQ(config.latency, Timestamp{25});
+}
+
+TEST(ConfigLoaderTest, ParseAgentConfigWithoutLatencyDefaultsToZero) {
+    json j = {
+        {"client_id", 1},
+        {"type", "NoiseTrader"},
+        {"initial_wakeup", 10},
+        {"seed", 100},
+        {"config", {
+            {"instrument", 1},
+            {"observation_noise", 50.0},
+            {"spread", 36},
+            {"min_quantity", 10},
+            {"max_quantity", 100},
+            {"min_interval", 50},
+            {"max_interval", 200},
+            {"stale_order_threshold", 100}
+        }}
+    };
+
+    AgentConfig config = j.get<AgentConfig>();
+
+    EXPECT_EQ(config.latency, Timestamp{0});
+}

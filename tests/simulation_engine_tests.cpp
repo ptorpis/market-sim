@@ -246,6 +246,120 @@ TEST_F(SimulationEngineLatencyTest, LatencyDelaysOrderProcessing) {
 }
 
 // =============================================================================
+// Per-Agent Latency
+// =============================================================================
+
+class SimulationEnginePerAgentLatencyTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // Global latency of 100
+        engine = std::make_unique<SimulationEngine>(Timestamp{100});
+        engine->add_instrument(InstrumentID{1});
+    }
+
+    std::unique_ptr<SimulationEngine> engine;
+};
+
+TEST_F(SimulationEnginePerAgentLatencyTest, AgentWithExplicitLatencyUsesIt) {
+    // Agent 1 has latency 10, agent 2 uses global (100)
+    engine->set_agent_latency(ClientID{1}, Timestamp{10});
+
+    // Schedule wakeup at t=0 for agent 1
+    engine->scheduler().schedule(
+        AgentWakeup{.timestamp = Timestamp{0}, .agent_id = ClientID{1}});
+
+    // Create a simple test agent that submits an order on wakeup
+    class TestAgent : public Agent {
+    public:
+        using Agent::Agent;
+        void on_wakeup(AgentContext& ctx) override {
+            ctx.submit_order(InstrumentID{1}, Quantity{50}, Price{1000}, OrderSide::BUY,
+                             OrderType::LIMIT);
+        }
+    };
+
+    engine->add_agent<TestAgent>(ClientID{1});
+
+    // Run to t=5 - order should not be processed yet (latency is 10)
+    engine->run_until(Timestamp{5});
+    EXPECT_EQ(engine->get_order_book(InstrumentID{1}).bids.size(), 0);
+
+    // Run to t=15 - order should be processed (submitted at t=0 + latency 10 = t=10)
+    engine->run_until(Timestamp{15});
+    EXPECT_EQ(engine->get_order_book(InstrumentID{1}).bids.size(), 1);
+}
+
+TEST_F(SimulationEnginePerAgentLatencyTest, AgentWithoutExplicitLatencyUsesGlobal) {
+    // Agent 2 has no explicit latency - should use global (100)
+
+    class TestAgent : public Agent {
+    public:
+        using Agent::Agent;
+        void on_wakeup(AgentContext& ctx) override {
+            ctx.submit_order(InstrumentID{1}, Quantity{50}, Price{1000}, OrderSide::BUY,
+                             OrderType::LIMIT);
+        }
+    };
+
+    engine->add_agent<TestAgent>(ClientID{2});
+    engine->scheduler().schedule(
+        AgentWakeup{.timestamp = Timestamp{0}, .agent_id = ClientID{2}});
+
+    // Run to t=50 - order should not be processed (global latency is 100)
+    engine->run_until(Timestamp{50});
+    EXPECT_EQ(engine->get_order_book(InstrumentID{1}).bids.size(), 0);
+
+    // Run to t=150 - order should be processed (submitted at t=0 + latency 100 = t=100)
+    engine->run_until(Timestamp{150});
+    EXPECT_EQ(engine->get_order_book(InstrumentID{1}).bids.size(), 1);
+}
+
+TEST_F(SimulationEnginePerAgentLatencyTest, DifferentLatenciesResultInDifferentOrderTiming) {
+    // Agent 1 has latency 10, agent 2 has latency 50
+    engine->set_agent_latency(ClientID{1}, Timestamp{10});
+    engine->set_agent_latency(ClientID{2}, Timestamp{50});
+
+    class TestAgent1 : public Agent {
+    public:
+        using Agent::Agent;
+        void on_wakeup(AgentContext& ctx) override {
+            ctx.submit_order(InstrumentID{1}, Quantity{50}, Price{1000}, OrderSide::BUY,
+                             OrderType::LIMIT);
+        }
+    };
+
+    class TestAgent2 : public Agent {
+    public:
+        using Agent::Agent;
+        void on_wakeup(AgentContext& ctx) override {
+            ctx.submit_order(InstrumentID{1}, Quantity{50}, Price{1001}, OrderSide::BUY,
+                             OrderType::LIMIT);
+        }
+    };
+
+    engine->add_agent<TestAgent1>(ClientID{1});
+    engine->add_agent<TestAgent2>(ClientID{2});
+
+    // Both agents wake at t=0
+    engine->scheduler().schedule(
+        AgentWakeup{.timestamp = Timestamp{0}, .agent_id = ClientID{1}});
+    engine->scheduler().schedule(
+        AgentWakeup{.timestamp = Timestamp{0}, .agent_id = ClientID{2}});
+
+    // At t=5: no orders yet (agent 1's order at t=10, agent 2's at t=50)
+    engine->run_until(Timestamp{5});
+    EXPECT_EQ(engine->get_order_book(InstrumentID{1}).bids.size(), 0);
+
+    // At t=15: only agent 1's order (latency 10 means order at t=10)
+    engine->run_until(Timestamp{15});
+    EXPECT_EQ(engine->get_order_book(InstrumentID{1}).bids.size(), 1);
+
+    // At t=55: both orders (agent 2's latency 50 means order at t=50)
+    engine->run_until(Timestamp{55});
+    EXPECT_EQ(engine->get_order_book(InstrumentID{1}).bids.size(), 2);
+}
+
+// =============================================================================
 // Run Until Behavior
 // =============================================================================
 

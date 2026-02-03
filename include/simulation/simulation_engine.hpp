@@ -82,6 +82,10 @@ public:
 
     DataCollector* data_collector() { return data_collector_.get(); }
 
+    void set_agent_latency(ClientID id, Timestamp latency) {
+        agent_latencies_.emplace(id, latency);
+    }
+
     void run_until(Timestamp end_time) {
         while (!scheduler_.empty() && get_timestamp(scheduler_.peek()) <= end_time) {
             step();
@@ -105,7 +109,8 @@ public:
     // AgentContext implementation
     void submit_order(InstrumentID instrument, Quantity qty, Price price, OrderSide side,
                       OrderType type) override {
-        scheduler_.schedule(OrderSubmitted{.timestamp = scheduler_.now() + latency_,
+        Timestamp latency = get_agent_latency_(current_agent_);
+        scheduler_.schedule(OrderSubmitted{.timestamp = scheduler_.now() + latency,
                                            .agent_id = current_agent_,
                                            .instrument_id = instrument,
                                            .quantity = qty,
@@ -115,15 +120,17 @@ public:
     }
 
     void cancel_order(OrderID order_id) override {
+        Timestamp latency = get_agent_latency_(current_agent_);
         scheduler_.schedule(
-            CancellationSubmitted{.timestamp = scheduler_.now() + latency_,
+            CancellationSubmitted{.timestamp = scheduler_.now() + latency,
                                   .agent_id = current_agent_,
                                   .order_id = order_id});
     }
 
     void modify_order(OrderID order_id, Quantity new_qty, Price new_price) override {
+        Timestamp latency = get_agent_latency_(current_agent_);
         scheduler_.schedule(
-            ModificationSubmitted{.timestamp = scheduler_.now() + latency_,
+            ModificationSubmitted{.timestamp = scheduler_.now() + latency,
                                   .agent_id = current_agent_,
                                   .order_id = order_id,
                                   .new_quantity = new_qty,
@@ -196,8 +203,17 @@ private:
     std::optional<FairPriceGenerator> fair_price_;
     ClientID current_agent_{0};
     Timestamp latency_;
+    std::unordered_map<ClientID, Timestamp, strong_hash<ClientID>> agent_latencies_;
     std::unique_ptr<DataCollector> data_collector_;
     std::uint64_t fair_price_seed_{0};
+
+    [[nodiscard]] Timestamp get_agent_latency_(ClientID id) const {
+        auto it = agent_latencies_.find(id);
+        if (it != agent_latencies_.end() && it->second > Timestamp{0}) {
+            return it->second;
+        }
+        return latency_;
+    }
 
     void dispatch_event(const Event& event) {
         std::visit(

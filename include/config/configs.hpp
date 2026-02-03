@@ -76,6 +76,7 @@ struct AgentConfig {
     std::string type;
     std::uint64_t seed;
     Timestamp initial_wakeup;
+    Timestamp latency{0}; // Per-agent latency; 0 means use global default
     NoiseTraderConfig noise_trader;
     MarketMakerConfig market_maker;
     InformedTraderConfig informed_trader;

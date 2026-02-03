@@ -24,23 +24,26 @@ void run_from_config(const SimulationConfig& config) {
         if (agent.type == "NoiseTrader") {
             sim.add_agent<NoiseTrader>(agent.id, agent.noise_trader, agent.seed);
             if (sim.data_collector()) {
-                sim.data_collector()->metadata().add_agent(
-                    agent.id, "NoiseTrader", to_json(agent.noise_trader), agent.seed);
+                sim.data_collector()->metadata().add_agent(agent.id, "NoiseTrader",
+                                                           to_json(agent.noise_trader),
+                                                           agent.seed, agent.latency);
             }
         } else if (agent.type == "MarketMaker") {
             sim.add_agent<MarketMaker>(agent.id, agent.market_maker, agent.seed);
             if (sim.data_collector()) {
-                sim.data_collector()->metadata().add_agent(
-                    agent.id, "MarketMaker", to_json(agent.market_maker), agent.seed);
+                sim.data_collector()->metadata().add_agent(agent.id, "MarketMaker",
+                                                           to_json(agent.market_maker),
+                                                           agent.seed, agent.latency);
             }
         } else if (agent.type == "InformedTrader") {
             sim.add_agent<InformedTrader>(agent.id, agent.informed_trader, agent.seed);
             if (sim.data_collector()) {
                 sim.data_collector()->metadata().add_agent(agent.id, "InformedTrader",
                                                            to_json(agent.informed_trader),
-                                                           agent.seed);
+                                                           agent.seed, agent.latency);
             }
         }
+        sim.set_agent_latency(agent.id, agent.latency);
         sim.scheduler().schedule(
             AgentWakeup{.timestamp = agent.initial_wakeup, .agent_id = agent.id});
     }
@@ -96,14 +99,16 @@ int main(int argc, char* argv[]) {
                 std::cerr << "Error: --config requires a path argument\n";
                 return 1;
             }
-        } else if (std::strcmp(argv[i], "--output") == 0) {
+        } else if (std::strcmp(argv[i], "--output") == 0 ||
+                   std::strcmp(argv[i], "-o") == 0) {
             if (i + 1 < argc) {
                 output_path = argv[++i];
             } else {
                 std::cerr << "Error: --output requires a path argument\n";
                 return 1;
             }
-        } else if (std::strcmp(argv[i], "--help") == 0) {
+        } else if (std::strcmp(argv[i], "--help") == 0 ||
+                   std::strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0]);
             return 0;
         } else {

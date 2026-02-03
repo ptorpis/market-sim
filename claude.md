@@ -76,7 +76,7 @@ if (price > Price{500}) { ... }
 | Classes/structs | `PascalCase` | `MatchingEngine`, `OrderBook` |
 | Config structs | Suffix with `Config` | `NoiseTraderConfig` |
 | Boolean methods | Prefix `is_` or suffix `needs_` | `is_zero()`, `needs_price_check()` |
-| Private members | Suffix with `_m` | `data_m`, `config_m` |
+| Private members | Suffix with `_` | `data_`, `config_` |
 | Private/impl functions | Suffix with `_` | `add_to_book_()` |
 
 ## Code Quality Requirements
@@ -282,11 +282,12 @@ Generated in `output_dir/`:
 ## Common Pitfalls
 
 1. **Don't use raw integers** - Always use strong types (`Price`, `Quantity`, etc.)
-2. **Don't forget `_m` suffix** - Private members must have `_m` suffix
+2. **Don't forget `_` suffix** - Private members must have `_` suffix
 3. **Don't skip `[[nodiscard]]`** - Add for functions where ignoring return is a bug
 4. **Don't create raw pointers** - Use `std::unique_ptr` or store by value
-5. **Event timestamps matter** - Events at same timestamp ordered by sequence number
-6. **Run all build variants** - `./run_all.sh` catches memory issues and UB
+5. **`std::shared_ptr`** - Generally a code smell, a different approach is usually better
+6. **Event timestamps matter** - Events at same timestamp ordered by sequence number
+7. **Run all build variants** - `./run_all.sh` catches memory issues and UB
 
 ## Running a Simulation
 

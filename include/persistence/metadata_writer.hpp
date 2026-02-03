@@ -63,8 +63,12 @@ public:
     }
 
     void add_agent(ClientID id, const std::string& type, const nlohmann::json& config,
-                   std::uint64_t seed) {
-        agents_.push_back({{"client_id", id.value()}, {"type", type}, {"config", config}, {"seed", seed}});
+                   std::uint64_t seed, Timestamp latency = Timestamp{0}) {
+        agents_.push_back({{"client_id", id.value()},
+                           {"type", type},
+                           {"config", config},
+                           {"seed", seed},
+                           {"latency", latency.value()}});
     }
 
     void set_duration(Timestamp duration) { simulation_["duration"] = duration.value(); }

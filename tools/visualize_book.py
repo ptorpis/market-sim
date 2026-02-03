@@ -195,6 +195,7 @@ def print_commands() -> None:
     print("  o <order_id>         - Inspect specific order")
     print("  l <BUY|SELL> <price> - List orders at price level")
     print("  t                    - Inspect the top of the book")
+    print("  d <num|max>          - Set number of levels to display")
     print("  q                    - Quit")
     print("  h                    - Print commands available")
 
@@ -302,6 +303,15 @@ def interactive_mode(deltas_path: str, levels: Optional[int]) -> None:
 
         elif parts[0].lower() == "h":
             print_commands()
+        elif parts[0].lower() == "d" and len(parts) == 2:
+            try:
+                levels = parse_levels(parts[1])
+                if levels is None:
+                    print("Showing all levels")
+                else:
+                    print(f"Showing {levels} levels")
+            except argparse.ArgumentTypeError:
+                print("Invalid level count. Use: d <number> or d max")
         else:
             print("Unknown command")
 

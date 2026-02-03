@@ -142,6 +142,7 @@ python tools/visualize_book.py output/deltas.csv --levels max
 | `o <order_id>` | Inspect specific order |
 | `l <BUY\|SELL> <price>` | List orders at price level |
 | `t` | Inspect top of book |
+| `d <num>\|<max>` | Adjust depth being displayed |
 | `q` | Quit |
 | `h` | Help |
 
