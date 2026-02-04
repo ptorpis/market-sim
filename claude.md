@@ -112,7 +112,7 @@ ctest --test-dir build/debug --output-on-failure
 - `asan`: AddressSanitizer + UndefinedBehaviorSanitizer
 - `valgrind`: Memory leak checking
 
-**Requirements:** CMake 3.28+, C++23 compiler (currently using g++15.2)
+**Requirements:** CMake 3.28+, C++23 compiler (currently using g++15.2/clang++-18)
 
 ## Architecture Overview
 

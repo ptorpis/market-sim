@@ -189,10 +189,10 @@ public:
     }
 
     void print_pnl(Price mark_price) const {
-        std::println("=============== P&L REPORT ================");
+        std::println("================= P&L REPORT ==================");
         std::println("{:>10} {:>10} {:>12} {:>12}", "Client", "Position", "Cash",
                      "Total P&L");
-        std::println("-------------------------------------------");
+        std::println("-----------------------------------------------");
         for (const auto& [client_id, pnl] : pnl_) {
             std::println("{:>10} {:>10} {:>12} {:>12}", client_id.value(),
                          pnl.net_position(), pnl.cash, pnl.total_pnl(mark_price));
@@ -362,7 +362,7 @@ private:
                     }
                 }
 
-                // Recor market state after modification
+                // Record market state after modification
                 if (data_collector_) {
                     data_collector_->on_market_state(scheduler_.now(), fair_price(),
                                                      engine->order_book());
