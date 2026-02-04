@@ -427,7 +427,7 @@ TEST_F(CrossValidationTest, Scenario_PnlConservation) {
 
 TEST_F(CrossValidationTest, Determinism_SameInputTwice_IdenticalOutput) {
     // Run scenario twice, verify same final state
-    auto run_scenario = [this]() {
+    auto run_scenario = []() {
         testing::TestHarness harness;
         harness.add_instrument(InstrumentID{1});
         // Don't set output directory - we just want to check final state

@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.28)
 project(MarketSimulator VERSION 0.1 LANGUAGES CXX)
 
+# Note: Using libstdc++ (default) with Clang for compatibility with system libraries
+# (e.g., GTest). To use libc++, rebuild dependencies with -stdlib=libc++.
+
 cmake_policy(SET CMP0135 NEW)
 
 # ==========================
@@ -53,9 +56,16 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         -Wall -Wextra -Wpedantic -Wshadow -Wcast-align -Wunused
         -Woverloaded-virtual -Wconversion -Wsign-conversion
         -Wdouble-promotion -Wformat=2 -Wimplicit-fallthrough
-        -Wold-style-cast -Wduplicated-cond -Wduplicated-branches
-        -Wlogical-op -Wuseless-cast -Wzero-as-null-pointer-constant
+        -Wold-style-cast -Wzero-as-null-pointer-constant
     )
+
+    # GCC-specific warnings (not supported by Clang)
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        add_compile_options(
+            -Wduplicated-cond -Wduplicated-branches
+            -Wlogical-op -Wuseless-cast
+        )
+    endif()
 endif()
 
 # ==========================

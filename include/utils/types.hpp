@@ -1,6 +1,8 @@
 #pragma once
 
+#include <concepts>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <functional>
 #include <ostream>
@@ -115,13 +117,19 @@ protected:
     Base data_m;
 };
 
+// Concept to identify StrongType derivatives (checks for tag_type which is unique to StrongType)
+template <typename T>
+concept IsStrongType = requires {
+    typename T::value_type;
+    typename T::tag_type;
+} && std::derived_from<T, StrongType<typename T::value_type, typename T::tag_type>>;
+
 /*
     Specialization of formatter to be able to use the type with std::format,
     std::println, etc...
 */
 template <typename Tag>
-    requires requires { typename Tag::value_type; } &&
-             std::formattable<typename Tag::value_type, char>
+    requires IsStrongType<Tag> && std::formattable<typename Tag::value_type, char>
 struct std::formatter<Tag> : std::formatter<typename Tag::value_type> {
     template <typename FormatContext>
     auto format(const Tag& st, FormatContext& ctx) const {

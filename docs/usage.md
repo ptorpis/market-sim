@@ -19,8 +19,11 @@ The main simulation engine. Simulates financial market microstructure with agent
 ### Building
 
 ```bash
-# Build all variants (debug, ASAN, Valgrind)
-./run_all.sh
+# Quick debug build and test only
+./build.sh --debug
+
+# Full build: debug + ASAN + Valgrind + Python tests
+./build.sh
 
 # Manual debug build
 cmake -S . -B build/debug
@@ -205,8 +208,11 @@ The project uses Google Test (C++) and pytest (Python).
 ### Running All Tests
 
 ```bash
-# Build and run all tests
-./run_all.sh
+# Quick: debug build and tests only
+./build.sh --debug
+
+# Full: all build variants + Python tests
+./build.sh
 
 # Or manually
 ctest --test-dir build/debug --output-on-failure
@@ -321,5 +327,5 @@ python tools/visualize_book.py output/deltas.csv -i
 python tools/visualize_timeseries.py output/ --analysis
 
 # 5. Run tests
-./run_all.sh
+./build.sh --debug
 ```
