@@ -20,6 +20,24 @@ void run_from_config(const SimulationConfig& config) {
 
     sim.set_fair_price(config.fair_price, config.fair_price_seed);
 
+    // Expand noise trader group
+    if (config.noise_traders) {
+        const auto& group = *config.noise_traders;
+        for (std::uint64_t i = 0; i < group.count; ++i) {
+            ClientID id{group.start_client_id.value() + i};
+            std::uint64_t seed = group.base_seed + i;
+            Timestamp wakeup{group.initial_wakeup_start.value() +
+                             i * group.initial_wakeup_step.value()};
+
+            sim.add_agent<NoiseTrader>(id, group.config, seed);
+            if (sim.data_collector()) {
+                sim.data_collector()->metadata().add_agent(
+                    id, "NoiseTrader", to_json(group.config), seed, Timestamp{0});
+            }
+            sim.scheduler().schedule(AgentWakeup{.timestamp = wakeup, .agent_id = id});
+        }
+    }
+
     for (const auto& agent : config.agents) {
         if (agent.type == "NoiseTrader") {
             sim.add_agent<NoiseTrader>(agent.id, agent.noise_trader, agent.seed);

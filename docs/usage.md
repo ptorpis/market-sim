@@ -63,17 +63,40 @@ Configuration is via JSON file. See `config_template.json` for a complete exampl
     "tick_size": 1000,
     "seed": 43
   },
+  "noise_traders": {
+    "count": 100,
+    "start_client_id": 1,
+    "base_seed": 100,
+    "initial_wakeup_start": 10,
+    "initial_wakeup_step": 10,
+    "config": { ... }
+  },
   "agents": [
     {
-      "client_id": 1,
-      "type": "NoiseTrader",
-      "initial_wakeup": 10,
-      "seed": 100,
+      "client_id": 200,
+      "type": "MarketMaker",
+      "initial_wakeup": 5,
+      "seed": 999,
       "config": { ... }
     }
   ]
 }
 ```
+
+#### Noise Trader Group
+
+The `noise_traders` section creates multiple noise traders with shared parameters:
+
+| Field | Description |
+|-------|-------------|
+| `count` | Number of noise traders to create |
+| `start_client_id` | First trader gets this ID, subsequent traders get ID+1, ID+2, etc. |
+| `base_seed` | First trader uses this seed, subsequent traders use seed+1, seed+2, etc. |
+| `initial_wakeup_start` | Timestamp for first trader's initial wakeup |
+| `initial_wakeup_step` | Stagger between wakeups (trader N wakes at start + N*step) |
+| `config` | Shared `NoiseTraderConfig` for all traders |
+
+This allows scaling to hundreds of noise traders without verbose config files. Individual noise traders can still be added in the `agents` array for special cases.
 
 #### Agent Types
 

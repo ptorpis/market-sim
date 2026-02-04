@@ -15,92 +15,25 @@
     "tick_size": 1000,
     "seed": 43
   },
+  "noise_traders": {
+    "count": 5,
+    "start_client_id": 1,
+    "base_seed": 100,
+    "initial_wakeup_start": 10,
+    "initial_wakeup_step": 10,
+    "config": {
+      "instrument": 1,
+      "observation_noise": 50.0,
+      "spread": 36,
+      "min_quantity": 10,
+      "max_quantity": 100,
+      "min_interval": 50,
+      "max_interval": 200,
+      "adverse_fill_threshold": 100,
+      "stale_order_threshold": 1000
+    }
+  },
   "agents": [
-    {
-      "client_id": 1,
-      "type": "NoiseTrader",
-      "initial_wakeup": 10,
-      "seed": 100,
-      "config": {
-        "instrument": 1,
-        "observation_noise": 50.0,
-        "spread": 36,
-        "min_quantity": 10,
-        "max_quantity": 100,
-        "min_interval": 50,
-        "max_interval": 200,
-        "adverse_fill_threshold": 100,
-        "stale_order_threshold": 1000
-      }
-    },
-    {
-      "client_id": 2,
-      "type": "NoiseTrader",
-      "initial_wakeup": 20,
-      "seed": 200,
-      "config": {
-        "instrument": 1,
-        "observation_noise": 50.0,
-        "spread": 36,
-        "min_quantity": 10,
-        "max_quantity": 100,
-        "min_interval": 50,
-        "max_interval": 200,
-        "adverse_fill_threshold": 100,
-        "stale_order_threshold": 1000
-      }
-    },
-    {
-      "client_id": 3,
-      "type": "NoiseTrader",
-      "initial_wakeup": 30,
-      "seed": 300,
-      "config": {
-        "instrument": 1,
-        "observation_noise": 50.0,
-        "spread": 36,
-        "min_quantity": 10,
-        "max_quantity": 100,
-        "min_interval": 50,
-        "max_interval": 200,
-        "adverse_fill_threshold": 100,
-        "stale_order_threshold": 1000
-      }
-    },
-    {
-      "client_id": 4,
-      "type": "NoiseTrader",
-      "initial_wakeup": 40,
-      "seed": 400,
-      "config": {
-        "instrument": 1,
-        "observation_noise": 50.0,
-        "spread": 36,
-        "min_quantity": 10,
-        "max_quantity": 100,
-        "min_interval": 50,
-        "max_interval": 200,
-        "adverse_fill_threshold": 100,
-        "stale_order_threshold": 1000
-      }
-    },
-    {
-      "client_id": 5,
-      "type": "NoiseTrader",
-      "initial_wakeup": 50,
-      "seed": 500,
-      "config": {
-        "instrument": 1,
-        "observation_noise": 50.0,
-        "spread": 36,
-        "min_quantity": 10,
-        "max_quantity": 100,
-        "min_interval": 50,
-        "max_interval": 200,
-        "adverse_fill_threshold": 100,
-        "stale_order_threshold": 1000
-      }
-    },
     {
       "client_id": 10,
       "type": "MarketMaker",

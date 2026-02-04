@@ -67,6 +67,42 @@ TEST(ConfigLoaderTest, ParseNoiseTraderConfig) {
 }
 
 // =============================================================================
+// NoiseTraderGroupConfig
+// =============================================================================
+
+TEST(ConfigLoaderTest, ParseNoiseTraderGroupConfig) {
+    json j = {
+        {"count", 5},
+        {"start_client_id", 100},
+        {"base_seed", 42},
+        {"initial_wakeup_start", 10},
+        {"initial_wakeup_step", 20},
+        {"config", {
+            {"instrument", 1},
+            {"observation_noise", 50.0},
+            {"spread", 36},
+            {"min_quantity", 10},
+            {"max_quantity", 100},
+            {"min_interval", 50},
+            {"max_interval", 200},
+            {"adverse_fill_threshold", 100},
+            {"stale_order_threshold", 1000}
+        }}
+    };
+
+    NoiseTraderGroupConfig config = j.get<NoiseTraderGroupConfig>();
+
+    EXPECT_EQ(config.count, 5ULL);
+    EXPECT_EQ(config.start_client_id, ClientID{100});
+    EXPECT_EQ(config.base_seed, 42ULL);
+    EXPECT_EQ(config.initial_wakeup_start, Timestamp{10});
+    EXPECT_EQ(config.initial_wakeup_step, Timestamp{20});
+    EXPECT_EQ(config.config.instrument, InstrumentID{1});
+    EXPECT_DOUBLE_EQ(config.config.observation_noise, 50.0);
+    EXPECT_EQ(config.config.spread, Price{36});
+}
+
+// =============================================================================
 // MarketMakerConfig
 // =============================================================================
 
@@ -299,6 +335,38 @@ TEST(ConfigLoaderTest, SimulationConfigWithMinimalFields) {
     EXPECT_TRUE(config.instruments.empty());
     EXPECT_TRUE(config.agents.empty());
     EXPECT_TRUE(config.initial_orders.empty());
+}
+
+TEST(ConfigLoaderTest, SimulationConfigWithNoiseTraderGroup) {
+    json j = {
+        {"noise_traders", {
+            {"count", 10},
+            {"start_client_id", 1},
+            {"base_seed", 100},
+            {"initial_wakeup_start", 5},
+            {"initial_wakeup_step", 10},
+            {"config", {
+                {"instrument", 1},
+                {"observation_noise", 50.0},
+                {"spread", 36},
+                {"min_quantity", 10},
+                {"max_quantity", 100},
+                {"min_interval", 50},
+                {"max_interval", 200},
+                {"adverse_fill_threshold", 100},
+                {"stale_order_threshold", 1000}
+            }}
+        }}
+    };
+
+    SimulationConfig config = j.get<SimulationConfig>();
+
+    ASSERT_TRUE(config.noise_traders.has_value());
+    EXPECT_EQ(config.noise_traders->count, 10ULL);
+    EXPECT_EQ(config.noise_traders->start_client_id, ClientID{1});
+    EXPECT_EQ(config.noise_traders->base_seed, 100ULL);
+    EXPECT_EQ(config.noise_traders->initial_wakeup_start, Timestamp{5});
+    EXPECT_EQ(config.noise_traders->initial_wakeup_step, Timestamp{10});
 }
 
 TEST(ConfigLoaderTest, SimulationConfigWithAgentsAndOrders) {

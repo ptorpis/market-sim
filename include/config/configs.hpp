@@ -4,6 +4,7 @@
 #include "utils/types.hpp"
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -39,6 +40,20 @@ struct NoiseTraderConfig {
     Timestamp max_interval;
     Price adverse_fill_threshold;
     Price stale_order_threshold;
+};
+
+/**
+ * Configuration for generating multiple noise traders with shared parameters.
+ * Traders are created with sequential client IDs, staggered wakeups, and
+ * deterministic seeds derived from a base seed.
+ */
+struct NoiseTraderGroupConfig {
+    std::uint64_t count;
+    ClientID start_client_id;
+    std::uint64_t base_seed;
+    Timestamp initial_wakeup_start;
+    Timestamp initial_wakeup_step;
+    NoiseTraderConfig config;
 };
 
 /**
@@ -118,6 +133,7 @@ struct SimulationConfig {
     std::vector<InstrumentID> instruments;
     FairPriceConfig fair_price;
     std::uint64_t fair_price_seed{0};
+    std::optional<NoiseTraderGroupConfig> noise_traders;
     std::vector<AgentConfig> agents;
     std::vector<InitialOrder> initial_orders;
 };

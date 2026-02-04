@@ -27,6 +27,15 @@ inline void from_json(const nlohmann::json& j, NoiseTraderConfig& c) {
     c.stale_order_threshold = Price{j.at("stale_order_threshold").get<std::uint64_t>()};
 }
 
+inline void from_json(const nlohmann::json& j, NoiseTraderGroupConfig& c) {
+    c.count = j.at("count").get<std::uint64_t>();
+    c.start_client_id = ClientID{j.at("start_client_id").get<std::uint64_t>()};
+    c.base_seed = j.at("base_seed").get<std::uint64_t>();
+    c.initial_wakeup_start = Timestamp{j.at("initial_wakeup_start").get<std::uint64_t>()};
+    c.initial_wakeup_step = Timestamp{j.at("initial_wakeup_step").get<std::uint64_t>()};
+    c.config = j.at("config").get<NoiseTraderConfig>();
+}
+
 inline void from_json(const nlohmann::json& j, MarketMakerConfig& c) {
     c.instrument = InstrumentID{j.at("instrument").get<std::uint32_t>()};
     c.observation_noise = j.at("observation_noise").get<double>();
@@ -109,6 +118,10 @@ inline void from_json(const nlohmann::json& j, SimulationConfig& c) {
         if (fp.contains("seed")) {
             c.fair_price_seed = fp.at("seed").get<std::uint64_t>();
         }
+    }
+
+    if (j.contains("noise_traders")) {
+        c.noise_traders = j.at("noise_traders").get<NoiseTraderGroupConfig>();
     }
 
     if (j.contains("agents")) {
