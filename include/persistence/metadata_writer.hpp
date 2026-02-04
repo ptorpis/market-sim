@@ -18,6 +18,7 @@ inline nlohmann::json to_json(const NoiseTraderConfig& c) {
             {"max_quantity", c.max_quantity.value()},
             {"min_interval", c.min_interval.value()},
             {"max_interval", c.max_interval.value()},
+            {"adverse_fill_threshold", c.adverse_fill_threshold.value()},
             {"stale_order_threshold", c.stale_order_threshold.value()}};
 }
 
@@ -39,6 +40,7 @@ inline nlohmann::json to_json(const InformedTraderConfig& c) {
             {"max_interval", c.max_interval.value()},
             {"min_edge", c.min_edge.value()},
             {"observation_noise", c.observation_noise},
+            {"adverse_fill_threshold", c.adverse_fill_threshold.value()},
             {"stale_order_threshold", c.stale_order_threshold.value()}};
 }
 

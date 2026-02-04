@@ -22,6 +22,8 @@ inline void from_json(const nlohmann::json& j, NoiseTraderConfig& c) {
     c.max_quantity = Quantity{j.at("max_quantity").get<std::uint64_t>()};
     c.min_interval = Timestamp{j.at("min_interval").get<std::uint64_t>()};
     c.max_interval = Timestamp{j.at("max_interval").get<std::uint64_t>()};
+    c.adverse_fill_threshold =
+        Price{j.at("adverse_fill_threshold").get<std::uint64_t>()};
     c.stale_order_threshold = Price{j.at("stale_order_threshold").get<std::uint64_t>()};
 }
 
@@ -43,6 +45,8 @@ inline void from_json(const nlohmann::json& j, InformedTraderConfig& c) {
     c.max_interval = Timestamp{j.at("max_interval").get<std::uint64_t>()};
     c.min_edge = Price{j.at("min_edge").get<std::uint64_t>()};
     c.observation_noise = j.at("observation_noise").get<double>();
+    c.adverse_fill_threshold =
+        Price{j.at("adverse_fill_threshold").get<std::uint64_t>()};
     c.stale_order_threshold = Price{j.at("stale_order_threshold").get<std::uint64_t>()};
 }
 

@@ -10,4 +10,14 @@ struct TrackedOrder {
     OrderID order_id;
     Price price;
     OrderSide side;
+    Quantity remaining_quantity;
+};
+
+/**
+ * Represents a pending order submission awaiting acceptance confirmation.
+ */
+struct PendingOrder {
+    Price price;
+    OrderSide side;
+    Quantity quantity;
 };

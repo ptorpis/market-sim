@@ -86,7 +86,8 @@ protected:
             .max_interval = Timestamp{100},
             .min_edge = Price{5},
             .observation_noise = 0.0, // No noise for deterministic tests
-            .stale_order_threshold = Price{20}};
+            .adverse_fill_threshold = Price{20},
+            .stale_order_threshold = Price{200}};
     }
 
     InformedTraderConfig config;
@@ -213,7 +214,7 @@ TEST_F(InformedTraderTest, TradeRemovesFilledOrder) {
                            .instrument_id = InstrumentID{1}};
     trader.on_order_accepted(ctx, accepted);
 
-    // Trade fills order
+    // Trade fully fills order (quantity >= max_quantity from config)
     Trade trade{.timestamp = Timestamp{0},
                 .trade_id = TradeID{1},
                 .instrument_id = InstrumentID{1},
@@ -221,7 +222,7 @@ TEST_F(InformedTraderTest, TradeRemovesFilledOrder) {
                 .seller_order_id = OrderID{2},
                 .buyer_id = ClientID{1},
                 .seller_id = ClientID{99},
-                .quantity = Quantity{5},
+                .quantity = Quantity{10},
                 .price = Price{102}};
     trader.on_trade(ctx, trade);
 
@@ -229,15 +230,140 @@ TEST_F(InformedTraderTest, TradeRemovesFilledOrder) {
     EXPECT_TRUE(active.empty());
 }
 
+TEST_F(InformedTraderTest, PartialFillDecrementsRemainingQuantity) {
+    config.min_quantity = Quantity{10};
+    config.max_quantity = Quantity{10}; // Deterministic quantity
+    InformedTrader trader(ClientID{1}, config, 42);
+    MockContextWithBook ctx(Price{120});
+    ctx.add_ask(Price{102}, Quantity{100});
+
+    // Submit and accept
+    trader.on_wakeup(ctx);
+    OrderAccepted accepted{.timestamp = Timestamp{0},
+                           .order_id = OrderID{1},
+                           .agent_id = ClientID{1},
+                           .instrument_id = InstrumentID{1}};
+    trader.on_order_accepted(ctx, accepted);
+
+    // Partial fill (3 out of 10)
+    Trade trade{.timestamp = Timestamp{0},
+                .trade_id = TradeID{1},
+                .instrument_id = InstrumentID{1},
+                .buyer_order_id = OrderID{1},
+                .seller_order_id = OrderID{2},
+                .buyer_id = ClientID{1},
+                .seller_id = ClientID{99},
+                .quantity = Quantity{3},
+                .price = Price{102}};
+    trader.on_trade(ctx, trade);
+
+    // Order should still be tracked with reduced quantity
+    const auto& active = InformedTraderTestAccess::active_orders(trader);
+    ASSERT_EQ(active.size(), 1);
+    EXPECT_EQ(active[0].remaining_quantity, Quantity{7});
+
+    // Another partial fill (4 more, total 7 out of 10)
+    Trade trade2{.timestamp = Timestamp{1},
+                 .trade_id = TradeID{2},
+                 .instrument_id = InstrumentID{1},
+                 .buyer_order_id = OrderID{1},
+                 .seller_order_id = OrderID{3},
+                 .buyer_id = ClientID{1},
+                 .seller_id = ClientID{99},
+                 .quantity = Quantity{4},
+                 .price = Price{102}};
+    trader.on_trade(ctx, trade2);
+
+    ASSERT_EQ(active.size(), 1);
+    EXPECT_EQ(active[0].remaining_quantity, Quantity{3});
+
+    // Final fill (3 remaining)
+    Trade trade3{.timestamp = Timestamp{2},
+                 .trade_id = TradeID{3},
+                 .instrument_id = InstrumentID{1},
+                 .buyer_order_id = OrderID{1},
+                 .seller_order_id = OrderID{4},
+                 .buyer_id = ClientID{1},
+                 .seller_id = ClientID{99},
+                 .quantity = Quantity{3},
+                 .price = Price{102}};
+    trader.on_trade(ctx, trade3);
+
+    // Now the order should be removed
+    EXPECT_TRUE(active.empty());
+}
+
+TEST_F(InformedTraderTest, PartiallyFilledOrderStillCancelledWhenStale) {
+    // This tests the bug where partially filled orders were removed from tracking
+    // and never cancelled even when they became stale
+    config.min_quantity = Quantity{10};
+    config.max_quantity = Quantity{10};
+    config.observation_noise = 0.0;
+    config.min_edge = Price{5};
+    config.adverse_fill_threshold = Price{20};
+    InformedTrader trader(ClientID{1}, config, 42);
+
+    // Fair price 120, best ask at 102: observed (120) > 102 + 5, so will buy at 102
+    MockContextWithBook ctx(Price{120});
+    ctx.add_ask(Price{102}, Quantity{100});
+
+    // Submit and accept a BUY order at 102
+    trader.on_wakeup(ctx);
+    ASSERT_EQ(ctx.submit_count, 1);
+    EXPECT_EQ(ctx.last_submit_price, Price{102});
+    EXPECT_EQ(ctx.last_submit_side, OrderSide::BUY);
+
+    OrderAccepted accepted{.timestamp = Timestamp{0},
+                           .order_id = OrderID{1},
+                           .agent_id = ClientID{1},
+                           .instrument_id = InstrumentID{1}};
+    trader.on_order_accepted(ctx, accepted);
+
+    const auto& active = InformedTraderTestAccess::active_orders(trader);
+    ASSERT_EQ(active.size(), 1);
+    EXPECT_EQ(active[0].price, Price{102});
+    EXPECT_EQ(active[0].side, OrderSide::BUY);
+
+    // Partial fill (only 3 of 10)
+    Trade trade{.timestamp = Timestamp{0},
+                .trade_id = TradeID{1},
+                .instrument_id = InstrumentID{1},
+                .buyer_order_id = OrderID{1},
+                .seller_order_id = OrderID{2},
+                .buyer_id = ClientID{1},
+                .seller_id = ClientID{99},
+                .quantity = Quantity{3},
+                .price = Price{102}};
+    trader.on_trade(ctx, trade);
+
+    // Order should still be tracked with 7 remaining
+    ASSERT_EQ(active.size(), 1);
+    EXPECT_EQ(active[0].remaining_quantity, Quantity{7});
+
+    // Move fair price down to make BUY order stale
+    // BUY at 102 is stale if 102 > fair + 20, so fair < 82
+    ctx.set_fair_price(Price{70});
+
+    // Wake up - should cancel the stale order
+    ctx.cancelled_orders.clear();
+    trader.on_wakeup(ctx);
+
+    // Verify the partially filled order was still cancelled
+    ASSERT_EQ(ctx.cancelled_orders.size(), 1);
+    EXPECT_EQ(ctx.cancelled_orders[0], OrderID{1});
+}
+
 // =============================================================================
 // Stale Order Cancellation Tests
 // =============================================================================
 
-TEST_F(InformedTraderTest, IsOrderStaleReturnsFalseWhenThresholdIsZero) {
+TEST_F(InformedTraderTest, IsOrderStaleReturnsFalseWhenThresholdsAreZero) {
+    config.adverse_fill_threshold = Price{0};
     config.stale_order_threshold = Price{0};
     InformedTrader trader(ClientID{1}, config, 42);
 
-    TrackedOrder order{.order_id = OrderID{1}, .price = Price{100}, .side = OrderSide::BUY};
+    TrackedOrder order{
+        .order_id = OrderID{1}, .price = Price{100}, .side = OrderSide::BUY, .remaining_quantity = Quantity{10}};
 
     EXPECT_FALSE(InformedTraderTestAccess::is_order_stale(trader, order, Price{50}));
     EXPECT_FALSE(InformedTraderTestAccess::is_order_stale(trader, order, Price{200}));
@@ -247,7 +373,8 @@ TEST_F(InformedTraderTest, BuyOrderStaleWhenPriceTooFarAboveFair) {
     InformedTrader trader(ClientID{1}, config, 42);
 
     // BUY order at 100, threshold is 20
-    TrackedOrder order{.order_id = OrderID{1}, .price = Price{100}, .side = OrderSide::BUY};
+    TrackedOrder order{
+        .order_id = OrderID{1}, .price = Price{100}, .side = OrderSide::BUY, .remaining_quantity = Quantity{10}};
 
     // Fair price at 79: 100 > 79 + 20 = 99? Yes, stale
     EXPECT_TRUE(InformedTraderTestAccess::is_order_stale(trader, order, Price{79}));
@@ -263,7 +390,8 @@ TEST_F(InformedTraderTest, SellOrderStaleWhenPriceTooFarBelowFair) {
     InformedTrader trader(ClientID{1}, config, 42);
 
     // SELL order at 100, threshold is 20
-    TrackedOrder order{.order_id = OrderID{1}, .price = Price{100}, .side = OrderSide::SELL};
+    TrackedOrder order{
+        .order_id = OrderID{1}, .price = Price{100}, .side = OrderSide::SELL, .remaining_quantity = Quantity{10}};
 
     // Fair price at 121: 100 + 20 < 121? 120 < 121? Yes, stale
     EXPECT_TRUE(InformedTraderTestAccess::is_order_stale(trader, order, Price{121}));

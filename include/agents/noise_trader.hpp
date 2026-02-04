@@ -34,9 +34,10 @@ public:
     void on_order_accepted([[maybe_unused]] AgentContext& ctx,
                            const OrderAccepted& event) override {
         if (event.agent_id == id() && !pending_submissions_.empty()) {
-            auto [price, side] = pending_submissions_.front();
+            auto pending = pending_submissions_.front();
             pending_submissions_.pop();
-            active_orders_.push_back({event.order_id, price, side});
+            active_orders_.push_back(
+                {event.order_id, pending.price, pending.side, pending.quantity});
         }
     }
 
@@ -47,22 +48,30 @@ public:
     }
 
     void on_trade([[maybe_unused]] AgentContext& ctx, const Trade& trade) override {
-        // Remove fully filled orders (order no longer in book after full fill)
-        // For partial fills, the order remains active
+        auto update_order = [&](OrderID order_id) {
+            auto it = std::find_if(active_orders_.begin(), active_orders_.end(),
+                                   [&](const auto& o) { return o.order_id == order_id; });
+            if (it != active_orders_.end()) {
+                if (trade.quantity >= it->remaining_quantity) {
+                    active_orders_.erase(it);
+                } else {
+                    it->remaining_quantity = it->remaining_quantity - trade.quantity;
+                }
+            }
+        };
+
         if (trade.buyer_id == id()) {
-            std::erase_if(active_orders_,
-                          [&](const auto& o) { return o.order_id == trade.buyer_order_id; });
+            update_order(trade.buyer_order_id);
         }
         if (trade.seller_id == id()) {
-            std::erase_if(active_orders_,
-                          [&](const auto& o) { return o.order_id == trade.seller_order_id; });
+            update_order(trade.seller_order_id);
         }
     }
 
 private:
     NoiseTraderConfig config_;
     std::mt19937_64 rng_;
-    std::queue<std::pair<Price, OrderSide>> pending_submissions_;
+    std::queue<PendingOrder> pending_submissions_;
     std::vector<TrackedOrder> active_orders_;
 
     Price observe_price(AgentContext& ctx) {
@@ -77,16 +86,30 @@ private:
     }
 
     [[nodiscard]] bool is_order_stale(const TrackedOrder& order, Price fair) const {
-        if (config_.stale_order_threshold.is_zero()) {
-            return false;
-        }
-        // BUY order is stale if we're bidding too far above fair value
-        // SELL order is stale if we're asking too far below fair value
         if (order.side == OrderSide::BUY) {
-            return order.price > fair + config_.stale_order_threshold;
+            // BUY: adverse fill if bidding too far ABOVE fair (would overpay)
+            if (!config_.adverse_fill_threshold.is_zero() &&
+                order.price > fair + config_.adverse_fill_threshold) {
+                return true;
+            }
+            // BUY: stale if bidding too far BELOW fair (won't execute)
+            if (!config_.stale_order_threshold.is_zero() &&
+                order.price + config_.stale_order_threshold < fair) {
+                return true;
+            }
         } else {
-            return order.price + config_.stale_order_threshold < fair;
+            // SELL: adverse fill if asking too far BELOW fair (would undersell)
+            if (!config_.adverse_fill_threshold.is_zero() &&
+                order.price + config_.adverse_fill_threshold < fair) {
+                return true;
+            }
+            // SELL: stale if asking too far ABOVE fair (won't execute)
+            if (!config_.stale_order_threshold.is_zero() &&
+                order.price > fair + config_.stale_order_threshold) {
+                return true;
+            }
         }
+        return false;
     }
 
     void cancel_stale_orders(AgentContext& ctx) {
@@ -113,7 +136,7 @@ private:
             config_.min_quantity.value(), config_.max_quantity.value());
         Quantity quantity{qty_dist(rng_)};
 
-        pending_submissions_.push({price, side});
+        pending_submissions_.push({price, side, quantity});
         ctx.submit_order(config_.instrument, quantity, price, side, OrderType::LIMIT);
     }
 

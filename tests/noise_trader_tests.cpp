@@ -57,7 +57,8 @@ protected:
             .max_quantity = Quantity{10},
             .min_interval = Timestamp{100},
             .max_interval = Timestamp{100},
-            .stale_order_threshold = Price{20}};
+            .adverse_fill_threshold = Price{20},
+            .stale_order_threshold = Price{200}};
     }
 
     NoiseTraderConfig config;
@@ -141,7 +142,7 @@ TEST_F(NoiseTraderTest, TradeRemovesFilledOrder) {
                            .instrument_id = InstrumentID{1}};
     trader.on_order_accepted(ctx, accepted);
 
-    // Trade fills the order (trader is buyer)
+    // Trade fully fills the order (quantity >= max_quantity from config)
     Trade trade{.timestamp = Timestamp{0},
                 .trade_id = TradeID{1},
                 .instrument_id = InstrumentID{1},
@@ -149,7 +150,7 @@ TEST_F(NoiseTraderTest, TradeRemovesFilledOrder) {
                 .seller_order_id = OrderID{2},
                 .buyer_id = ClientID{1},
                 .seller_id = ClientID{2},
-                .quantity = Quantity{5},
+                .quantity = Quantity{10},
                 .price = Price{100}};
     trader.on_trade(ctx, trade);
 
@@ -157,15 +158,136 @@ TEST_F(NoiseTraderTest, TradeRemovesFilledOrder) {
     EXPECT_TRUE(active.empty());
 }
 
+TEST_F(NoiseTraderTest, PartialFillDecrementsRemainingQuantity) {
+    config.min_quantity = Quantity{10};
+    config.max_quantity = Quantity{10}; // Deterministic quantity
+    NoiseTrader trader(ClientID{1}, config, 42);
+    MockContext ctx(Price{100});
+
+    // Submit and accept an order
+    trader.on_wakeup(ctx);
+    OrderAccepted accepted{.timestamp = Timestamp{0},
+                           .order_id = OrderID{1},
+                           .agent_id = ClientID{1},
+                           .instrument_id = InstrumentID{1}};
+    trader.on_order_accepted(ctx, accepted);
+
+    // Partial fill (3 out of 10)
+    Trade trade{.timestamp = Timestamp{0},
+                .trade_id = TradeID{1},
+                .instrument_id = InstrumentID{1},
+                .buyer_order_id = OrderID{1},
+                .seller_order_id = OrderID{2},
+                .buyer_id = ClientID{1},
+                .seller_id = ClientID{2},
+                .quantity = Quantity{3},
+                .price = Price{100}};
+    trader.on_trade(ctx, trade);
+
+    // Order should still be tracked with reduced quantity
+    const auto& active = NoiseTraderTestAccess::active_orders(trader);
+    ASSERT_EQ(active.size(), 1);
+    EXPECT_EQ(active[0].remaining_quantity, Quantity{7});
+
+    // Another partial fill (4 more, total 7 out of 10)
+    Trade trade2{.timestamp = Timestamp{1},
+                 .trade_id = TradeID{2},
+                 .instrument_id = InstrumentID{1},
+                 .buyer_order_id = OrderID{1},
+                 .seller_order_id = OrderID{3},
+                 .buyer_id = ClientID{1},
+                 .seller_id = ClientID{3},
+                 .quantity = Quantity{4},
+                 .price = Price{100}};
+    trader.on_trade(ctx, trade2);
+
+    ASSERT_EQ(active.size(), 1);
+    EXPECT_EQ(active[0].remaining_quantity, Quantity{3});
+
+    // Final fill (3 remaining)
+    Trade trade3{.timestamp = Timestamp{2},
+                 .trade_id = TradeID{3},
+                 .instrument_id = InstrumentID{1},
+                 .buyer_order_id = OrderID{1},
+                 .seller_order_id = OrderID{4},
+                 .buyer_id = ClientID{1},
+                 .seller_id = ClientID{4},
+                 .quantity = Quantity{3},
+                 .price = Price{100}};
+    trader.on_trade(ctx, trade3);
+
+    // Now the order should be removed
+    EXPECT_TRUE(active.empty());
+}
+
+TEST_F(NoiseTraderTest, PartiallyFilledOrderStillCancelledWhenStale) {
+    // This tests the bug where partially filled orders were removed from tracking
+    // and never cancelled even when they became stale
+    config.min_quantity = Quantity{10};
+    config.max_quantity = Quantity{10};
+    config.observation_noise = 0.0;
+    config.spread = Price{5};
+    config.adverse_fill_threshold = Price{20};
+    NoiseTrader trader(ClientID{1}, config, 42);
+    MockContext ctx(Price{100});
+
+    // Submit and accept an order (will be around price 100 due to 0 noise, ±5 spread)
+    trader.on_wakeup(ctx);
+    OrderAccepted accepted{.timestamp = Timestamp{0},
+                           .order_id = OrderID{1},
+                           .agent_id = ClientID{1},
+                           .instrument_id = InstrumentID{1}};
+    trader.on_order_accepted(ctx, accepted);
+
+    const auto& active = NoiseTraderTestAccess::active_orders(trader);
+    ASSERT_EQ(active.size(), 1);
+    Price order_price = active[0].price;
+    OrderSide order_side = active[0].side;
+
+    // Partial fill (only 3 of 10)
+    Trade trade{.timestamp = Timestamp{0},
+                .trade_id = TradeID{1},
+                .instrument_id = InstrumentID{1},
+                .buyer_order_id = order_side == OrderSide::BUY ? OrderID{1} : OrderID{2},
+                .seller_order_id = order_side == OrderSide::SELL ? OrderID{1} : OrderID{2},
+                .buyer_id = order_side == OrderSide::BUY ? ClientID{1} : ClientID{99},
+                .seller_id = order_side == OrderSide::SELL ? ClientID{1} : ClientID{99},
+                .quantity = Quantity{3},
+                .price = order_price};
+    trader.on_trade(ctx, trade);
+
+    // Order should still be tracked with 7 remaining
+    ASSERT_EQ(active.size(), 1);
+    EXPECT_EQ(active[0].remaining_quantity, Quantity{7});
+
+    // Move fair price to make order an adverse fill candidate
+    // BUY is adverse if order_price > fair + threshold (bidding too high)
+    // SELL is adverse if order_price + threshold < fair (asking too low)
+    Price new_fair = order_side == OrderSide::BUY
+                         ? Price{order_price.value() - config.adverse_fill_threshold.value() - 10}
+                         : Price{order_price.value() + config.adverse_fill_threshold.value() + 10};
+    ctx.set_fair_price(new_fair);
+
+    // Wake up - should cancel the stale order
+    ctx.cancelled_orders.clear();
+    trader.on_wakeup(ctx);
+
+    // Verify the partially filled order was still cancelled
+    ASSERT_EQ(ctx.cancelled_orders.size(), 1);
+    EXPECT_EQ(ctx.cancelled_orders[0], OrderID{1});
+}
+
 // =============================================================================
 // Stale Order Cancellation Tests
 // =============================================================================
 
-TEST_F(NoiseTraderTest, IsOrderStaleReturnsFalseWhenThresholdIsZero) {
+TEST_F(NoiseTraderTest, IsOrderStaleReturnsFalseWhenThresholdsAreZero) {
+    config.adverse_fill_threshold = Price{0};
     config.stale_order_threshold = Price{0};
     NoiseTrader trader(ClientID{1}, config, 42);
 
-    TrackedOrder order{.order_id = OrderID{1}, .price = Price{100}, .side = OrderSide::BUY};
+    TrackedOrder order{
+        .order_id = OrderID{1}, .price = Price{100}, .side = OrderSide::BUY, .remaining_quantity = Quantity{10}};
 
     // Even with large price deviation, should not be stale when threshold is 0
     EXPECT_FALSE(NoiseTraderTestAccess::is_order_stale(trader, order, Price{50}));
@@ -176,7 +298,8 @@ TEST_F(NoiseTraderTest, BuyOrderStaleWhenPriceTooFarAboveFair) {
     NoiseTrader trader(ClientID{1}, config, 42);
 
     // BUY order at 100, threshold is 20
-    TrackedOrder order{.order_id = OrderID{1}, .price = Price{100}, .side = OrderSide::BUY};
+    TrackedOrder order{
+        .order_id = OrderID{1}, .price = Price{100}, .side = OrderSide::BUY, .remaining_quantity = Quantity{10}};
 
     // Fair price at 80: 100 > 80 + 20, so stale
     EXPECT_TRUE(NoiseTraderTestAccess::is_order_stale(trader, order, Price{79}));
@@ -192,7 +315,8 @@ TEST_F(NoiseTraderTest, SellOrderStaleWhenPriceTooFarBelowFair) {
     NoiseTrader trader(ClientID{1}, config, 42);
 
     // SELL order at 100, threshold is 20
-    TrackedOrder order{.order_id = OrderID{1}, .price = Price{100}, .side = OrderSide::SELL};
+    TrackedOrder order{
+        .order_id = OrderID{1}, .price = Price{100}, .side = OrderSide::SELL, .remaining_quantity = Quantity{10}};
 
     // Fair price at 121: 100 + 20 < 121, so stale (asking too low)
     EXPECT_TRUE(NoiseTraderTestAccess::is_order_stale(trader, order, Price{121}));
@@ -222,15 +346,15 @@ TEST_F(NoiseTraderTest, OnWakeupCancelsStaleOrders) {
     Price order_price = active[0].price;
     OrderSide order_side = active[0].side;
 
-    // Move fair price to make the order stale
+    // Move fair price to make the order an adverse fill candidate
     if (order_side == OrderSide::BUY) {
-        // BUY order is stale when price > fair + threshold
+        // BUY order is adverse when price > fair + threshold
         // So set fair to order_price - threshold - 1
-        ctx.set_fair_price(Price{order_price.value() - config.stale_order_threshold.value() - 1});
+        ctx.set_fair_price(Price{order_price.value() - config.adverse_fill_threshold.value() - 1});
     } else {
-        // SELL order is stale when price + threshold < fair
+        // SELL order is adverse when price + threshold < fair
         // So set fair to order_price + threshold + 1
-        ctx.set_fair_price(Price{order_price.value() + config.stale_order_threshold.value() + 1});
+        ctx.set_fair_price(Price{order_price.value() + config.adverse_fill_threshold.value() + 1});
     }
 
     // Trigger another wakeup which should cancel stale orders
@@ -255,7 +379,7 @@ TEST_F(NoiseTraderTest, StaleOrderCancellationWithSimulationEngine) {
     engine.set_fair_price_source(std::move(dummy_source));
 
     // Add noise trader with longer interval so we can control timing
-    config.stale_order_threshold = Price{10};
+    config.adverse_fill_threshold = Price{10};
     config.min_interval = Timestamp{1000};
     config.max_interval = Timestamp{1000};
     auto& trader = engine.add_agent<NoiseTrader>(ClientID{1}, config, 42);
@@ -285,13 +409,13 @@ TEST_F(NoiseTraderTest, StaleOrderCancellationWithSimulationEngine) {
     }
     EXPECT_EQ(total_orders, 1);
 
-    // Move fair price dramatically to make the order stale
+    // Move fair price dramatically to make the order an adverse fill candidate
     if (order_side == OrderSide::BUY) {
-        // BUY at order_price is stale when order_price > fair + threshold
-        source_ptr->set_price(Price{order_price.value() - config.stale_order_threshold.value() - 5});
+        // BUY at order_price is adverse when order_price > fair + threshold
+        source_ptr->set_price(Price{order_price.value() - config.adverse_fill_threshold.value() - 5});
     } else {
-        // SELL at order_price is stale when order_price + threshold < fair
-        source_ptr->set_price(Price{order_price.value() + config.stale_order_threshold.value() + 5});
+        // SELL at order_price is adverse when order_price + threshold < fair
+        source_ptr->set_price(Price{order_price.value() + config.adverse_fill_threshold.value() + 5});
     }
 
     // Run until the next wakeup (at timestamp ~1001) + cancellation processing

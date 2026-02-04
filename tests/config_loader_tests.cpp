@@ -49,7 +49,8 @@ TEST(ConfigLoaderTest, ParseNoiseTraderConfig) {
         {"max_quantity", 100},
         {"min_interval", 50},
         {"max_interval", 200},
-        {"stale_order_threshold", 100}
+        {"adverse_fill_threshold", 100},
+            {"stale_order_threshold", 1000}
     };
 
     NoiseTraderConfig config = j.get<NoiseTraderConfig>();
@@ -61,7 +62,8 @@ TEST(ConfigLoaderTest, ParseNoiseTraderConfig) {
     EXPECT_EQ(config.max_quantity, Quantity{100});
     EXPECT_EQ(config.min_interval, Timestamp{50});
     EXPECT_EQ(config.max_interval, Timestamp{200});
-    EXPECT_EQ(config.stale_order_threshold, Price{100});
+    EXPECT_EQ(config.adverse_fill_threshold, Price{100});
+    EXPECT_EQ(config.stale_order_threshold, Price{1000});
 }
 
 // =============================================================================
@@ -103,7 +105,8 @@ TEST(ConfigLoaderTest, ParseInformedTraderConfig) {
         {"max_interval", 500},
         {"min_edge", 3},
         {"observation_noise", 5.0},
-        {"stale_order_threshold", 50}
+        {"adverse_fill_threshold", 50},
+            {"stale_order_threshold", 500}
     };
 
     InformedTraderConfig config = j.get<InformedTraderConfig>();
@@ -115,7 +118,8 @@ TEST(ConfigLoaderTest, ParseInformedTraderConfig) {
     EXPECT_EQ(config.max_interval, Timestamp{500});
     EXPECT_EQ(config.min_edge, Price{3});
     EXPECT_DOUBLE_EQ(config.observation_noise, 5.0);
-    EXPECT_EQ(config.stale_order_threshold, Price{50});
+    EXPECT_EQ(config.adverse_fill_threshold, Price{50});
+    EXPECT_EQ(config.stale_order_threshold, Price{500});
 }
 
 // =============================================================================
@@ -169,7 +173,8 @@ TEST(ConfigLoaderTest, ParseAgentConfigNoiseTrader) {
             {"max_quantity", 100},
             {"min_interval", 50},
             {"max_interval", 200},
-            {"stale_order_threshold", 100}
+            {"adverse_fill_threshold", 100},
+            {"stale_order_threshold", 1000}
         }}
     };
 
@@ -220,7 +225,8 @@ TEST(ConfigLoaderTest, ParseAgentConfigInformedTrader) {
             {"max_interval", 500},
             {"min_edge", 3},
             {"observation_noise", 5.0},
-            {"stale_order_threshold", 50}
+            {"adverse_fill_threshold", 50},
+            {"stale_order_threshold", 500}
         }}
     };
 
@@ -311,7 +317,8 @@ TEST(ConfigLoaderTest, SimulationConfigWithAgentsAndOrders) {
                     {"max_quantity", 100},
                     {"min_interval", 50},
                     {"max_interval", 200},
-                    {"stale_order_threshold", 100}
+                    {"adverse_fill_threshold", 100},
+            {"stale_order_threshold", 1000}
                 }}
             }
         }},
@@ -360,7 +367,8 @@ TEST(ConfigLoaderTest, ParseAgentConfigWithLatency) {
             {"max_quantity", 100},
             {"min_interval", 50},
             {"max_interval", 200},
-            {"stale_order_threshold", 100}
+            {"adverse_fill_threshold", 100},
+            {"stale_order_threshold", 1000}
         }}
     };
 
@@ -384,7 +392,8 @@ TEST(ConfigLoaderTest, ParseAgentConfigWithoutLatencyDefaultsToZero) {
             {"max_quantity", 100},
             {"min_interval", 50},
             {"max_interval", 200},
-            {"stale_order_threshold", 100}
+            {"adverse_fill_threshold", 100},
+            {"stale_order_threshold", 1000}
         }}
     };
 
