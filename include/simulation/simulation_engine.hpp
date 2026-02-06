@@ -69,7 +69,8 @@ public:
                 if constexpr (std::is_same_v<T, FairPriceConfig>) {
                     fair_price_ = std::make_unique<FairPriceGenerator>(cfg, seed);
                 } else if constexpr (std::is_same_v<T, JumpDiffusionConfig>) {
-                    fair_price_ = std::make_unique<JumpDiffusionFairPriceGenerator>(cfg, seed);
+                    fair_price_ =
+                        std::make_unique<JumpDiffusionFairPriceGenerator>(cfg, seed);
                 }
             },
             config);
@@ -146,20 +147,18 @@ public:
 
     void cancel_order(OrderID order_id) override {
         Timestamp latency = get_agent_latency_(current_agent_);
-        scheduler_.schedule(
-            CancellationSubmitted{.timestamp = scheduler_.now() + latency,
-                                  .agent_id = current_agent_,
-                                  .order_id = order_id});
+        scheduler_.schedule(CancellationSubmitted{.timestamp = scheduler_.now() + latency,
+                                                  .agent_id = current_agent_,
+                                                  .order_id = order_id});
     }
 
     void modify_order(OrderID order_id, Quantity new_qty, Price new_price) override {
         Timestamp latency = get_agent_latency_(current_agent_);
-        scheduler_.schedule(
-            ModificationSubmitted{.timestamp = scheduler_.now() + latency,
-                                  .agent_id = current_agent_,
-                                  .order_id = order_id,
-                                  .new_quantity = new_qty,
-                                  .new_price = new_price});
+        scheduler_.schedule(ModificationSubmitted{.timestamp = scheduler_.now() + latency,
+                                                  .agent_id = current_agent_,
+                                                  .order_id = order_id,
+                                                  .new_quantity = new_qty,
+                                                  .new_price = new_price});
     }
 
     void schedule_wakeup(Timestamp at) override {
@@ -230,14 +229,16 @@ private:
     Timestamp latency_;
     std::unordered_map<ClientID, Timestamp, strong_hash<ClientID>> agent_latencies_;
     std::unordered_map<ClientID, double, strong_hash<ClientID>> agent_jitters_;
-    std::unordered_map<ClientID, std::mt19937_64, strong_hash<ClientID>> agent_latency_rngs_;
+    std::unordered_map<ClientID, std::mt19937_64, strong_hash<ClientID>>
+        agent_latency_rngs_;
     std::unique_ptr<DataCollector> data_collector_;
     std::uint64_t fair_price_seed_{0};
 
     [[nodiscard]] Timestamp get_agent_latency_(ClientID id) {
         auto it = agent_latencies_.find(id);
-        Timestamp base =
-            (it != agent_latencies_.end() && it->second > Timestamp{0}) ? it->second : latency_;
+        Timestamp base = (it != agent_latencies_.end() && it->second > Timestamp{0})
+                             ? it->second
+                             : latency_;
 
         auto jit = agent_jitters_.find(id);
         if (jit == agent_jitters_.end() || base == Timestamp{0}) {

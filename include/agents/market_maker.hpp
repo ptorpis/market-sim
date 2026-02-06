@@ -91,14 +91,14 @@ private:
 
         if (net < max) {
             ctx.submit_order(config_.instrument, config_.quote_size,
-                             Price{static_cast<std::uint64_t>(std::round(bid))}, OrderSide::BUY,
-                             OrderType::LIMIT);
+                             Price{static_cast<std::uint64_t>(std::round(bid))},
+                             OrderSide::BUY, OrderType::LIMIT);
         }
 
         if (net > -max) {
             ctx.submit_order(config_.instrument, config_.quote_size,
-                             Price{static_cast<std::uint64_t>(std::round(ask))}, OrderSide::SELL,
-                             OrderType::LIMIT);
+                             Price{static_cast<std::uint64_t>(std::round(ask))},
+                             OrderSide::SELL, OrderType::LIMIT);
         }
     }
 };

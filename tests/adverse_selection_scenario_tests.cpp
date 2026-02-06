@@ -63,7 +63,8 @@ protected:
             test_dir_ = fs::path(env_dir) / ("test_" + std::to_string(test_counter_++));
             preserve_output_ = true;
         } else {
-            test_dir_ = fs::temp_directory_path() / ("as_test_" + std::to_string(test_counter_++));
+            test_dir_ = fs::temp_directory_path() /
+                        ("as_test_" + std::to_string(test_counter_++));
             preserve_output_ = false;
         }
         fs::create_directories(test_dir_);
@@ -84,9 +85,9 @@ protected:
         std::string type;
     };
 
-    testing::TestHarness setup_harness(
-        std::vector<std::pair<Timestamp, Price>> fair_price_schedule,
-        std::vector<AgentEntry> agents) {
+    testing::TestHarness
+    setup_harness(std::vector<std::pair<Timestamp, Price>> fair_price_schedule,
+                  std::vector<AgentEntry> agents) {
 
         testing::TestHarness harness;
         harness.add_instrument(InstrumentID{1});
@@ -108,8 +109,10 @@ protected:
     void verify_output_files() {
         EXPECT_TRUE(fs::exists(test_dir_ / "deltas.csv")) << "deltas.csv not created";
         EXPECT_TRUE(fs::exists(test_dir_ / "trades.csv")) << "trades.csv not created";
-        EXPECT_TRUE(fs::exists(test_dir_ / "market_state.csv")) << "market_state.csv not created";
-        EXPECT_TRUE(fs::exists(test_dir_ / "metadata.json")) << "metadata.json not created";
+        EXPECT_TRUE(fs::exists(test_dir_ / "market_state.csv"))
+            << "market_state.csv not created";
+        EXPECT_TRUE(fs::exists(test_dir_ / "metadata.json"))
+            << "metadata.json not created";
     }
 
     fs::path test_dir_;
@@ -123,17 +126,17 @@ protected:
 
 TEST_F(AdverseSelectionScenarioTest, BasicMMBuyFill) {
     // Fair price constant at 950 (below fill price → adverse selection for MM buyer)
-    auto harness = setup_harness(
-        {{Timestamp{0}, Price{950}}},
-        {{ClientID{10}, "MarketMaker"}, {ClientID{20}, "NoiseTrader"}});
+    auto harness =
+        setup_harness({{Timestamp{0}, Price{950}}},
+                      {{ClientID{10}, "MarketMaker"}, {ClientID{20}, "NoiseTrader"}});
 
     // t=100: MM posts resting BUY 100 @ 1000
-    harness.schedule_order(Timestamp{100}, ClientID{10}, InstrumentID{1},
-                           Quantity{100}, Price{1000}, OrderSide::BUY);
+    harness.schedule_order(Timestamp{100}, ClientID{10}, InstrumentID{1}, Quantity{100},
+                           Price{1000}, OrderSide::BUY);
 
     // t=200: NoiseTrader aggresses with SELL 100 @ 1000
-    harness.schedule_order(Timestamp{200}, ClientID{20}, InstrumentID{1},
-                           Quantity{100}, Price{1000}, OrderSide::SELL);
+    harness.schedule_order(Timestamp{200}, ClientID{20}, InstrumentID{1}, Quantity{100},
+                           Price{1000}, OrderSide::SELL);
 
     harness.run(Timestamp{300});
     verify_output_files();
@@ -151,17 +154,17 @@ TEST_F(AdverseSelectionScenarioTest, BasicMMBuyFill) {
 
 TEST_F(AdverseSelectionScenarioTest, BasicMMSellFill) {
     // Fair price constant at 1050 (above fill price → adverse selection for MM seller)
-    auto harness = setup_harness(
-        {{Timestamp{0}, Price{1050}}},
-        {{ClientID{10}, "MarketMaker"}, {ClientID{30}, "InformedTrader"}});
+    auto harness =
+        setup_harness({{Timestamp{0}, Price{1050}}},
+                      {{ClientID{10}, "MarketMaker"}, {ClientID{30}, "InformedTrader"}});
 
     // t=100: MM posts resting SELL 100 @ 1000
-    harness.schedule_order(Timestamp{100}, ClientID{10}, InstrumentID{1},
-                           Quantity{100}, Price{1000}, OrderSide::SELL);
+    harness.schedule_order(Timestamp{100}, ClientID{10}, InstrumentID{1}, Quantity{100},
+                           Price{1000}, OrderSide::SELL);
 
     // t=200: InformedTrader aggresses with BUY 100 @ 1000
-    harness.schedule_order(Timestamp{200}, ClientID{30}, InstrumentID{1},
-                           Quantity{100}, Price{1000}, OrderSide::BUY);
+    harness.schedule_order(Timestamp{200}, ClientID{30}, InstrumentID{1}, Quantity{100},
+                           Price{1000}, OrderSide::BUY);
 
     harness.run(Timestamp{300});
     verify_output_files();
@@ -179,21 +182,21 @@ TEST_F(AdverseSelectionScenarioTest, BasicMMSellFill) {
 
 TEST_F(AdverseSelectionScenarioTest, ModifyResetsQuoteAge) {
     // Fair price constant at 1000
-    auto harness = setup_harness(
-        {{Timestamp{0}, Price{1000}}},
-        {{ClientID{10}, "MarketMaker"}, {ClientID{20}, "NoiseTrader"}});
+    auto harness =
+        setup_harness({{Timestamp{0}, Price{1000}}},
+                      {{ClientID{10}, "MarketMaker"}, {ClientID{20}, "NoiseTrader"}});
 
     // t=100: MM posts resting BUY 100 @ 990
-    harness.schedule_order(Timestamp{100}, ClientID{10}, InstrumentID{1},
-                           Quantity{100}, Price{990}, OrderSide::BUY);
+    harness.schedule_order(Timestamp{100}, ClientID{10}, InstrumentID{1}, Quantity{100},
+                           Price{990}, OrderSide::BUY);
 
     // t=300: MM modifies order to 100 @ 995 (resets quote age clock)
-    harness.schedule_modify(Timestamp{300}, ClientID{10}, OrderID{1},
-                            Quantity{100}, Price{995});
+    harness.schedule_modify(Timestamp{300}, ClientID{10}, OrderID{1}, Quantity{100},
+                            Price{995});
 
     // t=500: NoiseTrader aggresses with SELL 100 @ 995
-    harness.schedule_order(Timestamp{500}, ClientID{20}, InstrumentID{1},
-                           Quantity{100}, Price{995}, OrderSide::SELL);
+    harness.schedule_order(Timestamp{500}, ClientID{20}, InstrumentID{1}, Quantity{100},
+                           Price{995}, OrderSide::SELL);
 
     harness.run(Timestamp{600});
     verify_output_files();
@@ -211,17 +214,17 @@ TEST_F(AdverseSelectionScenarioTest, ModifyResetsQuoteAge) {
 
 TEST_F(AdverseSelectionScenarioTest, AggressorMMSkipped) {
     // Fair price constant at 1000
-    auto harness = setup_harness(
-        {{Timestamp{0}, Price{1000}}},
-        {{ClientID{10}, "MarketMaker"}, {ClientID{20}, "NoiseTrader"}});
+    auto harness =
+        setup_harness({{Timestamp{0}, Price{1000}}},
+                      {{ClientID{10}, "MarketMaker"}, {ClientID{20}, "NoiseTrader"}});
 
     // t=100: NoiseTrader posts resting SELL 100 @ 1000
-    harness.schedule_order(Timestamp{100}, ClientID{20}, InstrumentID{1},
-                           Quantity{100}, Price{1000}, OrderSide::SELL);
+    harness.schedule_order(Timestamp{100}, ClientID{20}, InstrumentID{1}, Quantity{100},
+                           Price{1000}, OrderSide::SELL);
 
     // t=200: MM aggresses with BUY 100 @ 1000 (MM is the taker, not the maker)
-    harness.schedule_order(Timestamp{200}, ClientID{10}, InstrumentID{1},
-                           Quantity{100}, Price{1000}, OrderSide::BUY);
+    harness.schedule_order(Timestamp{200}, ClientID{10}, InstrumentID{1}, Quantity{100},
+                           Price{1000}, OrderSide::BUY);
 
     harness.run(Timestamp{300});
     verify_output_files();
@@ -239,31 +242,30 @@ TEST_F(AdverseSelectionScenarioTest, AggressorMMSkipped) {
 TEST_F(AdverseSelectionScenarioTest, RealizedASWithChangingFairPrice) {
     // Fair price changes over time:
     // t=0..199: 950, t=200..299: 950, t=300..399: 920, t=400..499: 880, t=500+: 900
-    auto harness = setup_harness(
-        {{Timestamp{0}, Price{950}},
-         {Timestamp{300}, Price{920}},
-         {Timestamp{400}, Price{880}},
-         {Timestamp{500}, Price{900}}},
-        {{ClientID{10}, "MarketMaker"},
-         {ClientID{20}, "NoiseTrader"},
-         {ClientID{99}, "NoiseTrader"}});
+    auto harness = setup_harness({{Timestamp{0}, Price{950}},
+                                  {Timestamp{300}, Price{920}},
+                                  {Timestamp{400}, Price{880}},
+                                  {Timestamp{500}, Price{900}}},
+                                 {{ClientID{10}, "MarketMaker"},
+                                  {ClientID{20}, "NoiseTrader"},
+                                  {ClientID{99}, "NoiseTrader"}});
 
     // t=100: MM posts resting BUY 100 @ 1000
-    harness.schedule_order(Timestamp{100}, ClientID{10}, InstrumentID{1},
-                           Quantity{100}, Price{1000}, OrderSide::BUY);
+    harness.schedule_order(Timestamp{100}, ClientID{10}, InstrumentID{1}, Quantity{100},
+                           Price{1000}, OrderSide::BUY);
 
     // t=200: NoiseTrader aggresses with SELL 100 @ 1000 (fill at fair_price=950)
-    harness.schedule_order(Timestamp{200}, ClientID{20}, InstrumentID{1},
-                           Quantity{100}, Price{1000}, OrderSide::SELL);
+    harness.schedule_order(Timestamp{200}, ClientID{20}, InstrumentID{1}, Quantity{100},
+                           Price{1000}, OrderSide::SELL);
 
     // Dummy orders to generate market_state.csv entries at future timestamps
     // so realized AS horizon lookups can find fair prices at t=300, 400, 500
-    harness.schedule_order(Timestamp{300}, ClientID{99}, InstrumentID{1},
-                           Quantity{10}, Price{500}, OrderSide::BUY);
-    harness.schedule_order(Timestamp{400}, ClientID{99}, InstrumentID{1},
-                           Quantity{10}, Price{501}, OrderSide::BUY);
-    harness.schedule_order(Timestamp{500}, ClientID{99}, InstrumentID{1},
-                           Quantity{10}, Price{502}, OrderSide::BUY);
+    harness.schedule_order(Timestamp{300}, ClientID{99}, InstrumentID{1}, Quantity{10},
+                           Price{500}, OrderSide::BUY);
+    harness.schedule_order(Timestamp{400}, ClientID{99}, InstrumentID{1}, Quantity{10},
+                           Price{501}, OrderSide::BUY);
+    harness.schedule_order(Timestamp{500}, ClientID{99}, InstrumentID{1}, Quantity{10},
+                           Price{502}, OrderSide::BUY);
 
     harness.run(Timestamp{600});
     verify_output_files();

@@ -23,19 +23,18 @@ void TestHarness::set_state_export_callback(StateExportCallback callback) {
 void TestHarness::schedule_order(Timestamp ts, ClientID client, InstrumentID instrument,
                                  Quantity qty, Price price, OrderSide side,
                                  OrderType type) {
-    engine_.scheduler().schedule(
-        OrderSubmitted{.timestamp = ts,
-                       .agent_id = client,
-                       .instrument_id = instrument,
-                       .quantity = qty,
-                       .price = price,
-                       .side = side,
-                       .type = type});
+    engine_.scheduler().schedule(OrderSubmitted{.timestamp = ts,
+                                                .agent_id = client,
+                                                .instrument_id = instrument,
+                                                .quantity = qty,
+                                                .price = price,
+                                                .side = side,
+                                                .type = type});
 }
 
 void TestHarness::schedule_cancel(Timestamp ts, ClientID client, OrderID order_id) {
-    engine_.scheduler().schedule(CancellationSubmitted{
-        .timestamp = ts, .agent_id = client, .order_id = order_id});
+    engine_.scheduler().schedule(
+        CancellationSubmitted{.timestamp = ts, .agent_id = client, .order_id = order_id});
 }
 
 void TestHarness::schedule_modify(Timestamp ts, ClientID client, OrderID order_id,

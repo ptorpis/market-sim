@@ -43,14 +43,17 @@ public:
 
     void on_order_cancelled([[maybe_unused]] AgentContext& ctx,
                             const OrderCancelled& event) override {
-        std::erase_if(active_orders_,
-                      [&](const auto& o) { return o.order_id == event.order_id; });
+        std::erase_if(active_orders_, [&](const auto& o) {
+            return o.order_id == event.order_id;
+        });
     }
 
     void on_trade([[maybe_unused]] AgentContext& ctx, const Trade& trade) override {
         auto update_order = [&](OrderID order_id) {
             auto it = std::find_if(active_orders_.begin(), active_orders_.end(),
-                                   [&](const auto& o) { return o.order_id == order_id; });
+                                   [&](const auto& o) {
+                                       return o.order_id == order_id;
+                                   });
             if (it != active_orders_.end()) {
                 if (trade.quantity >= it->remaining_quantity) {
                     active_orders_.erase(it);

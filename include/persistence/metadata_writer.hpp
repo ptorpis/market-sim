@@ -67,7 +67,11 @@ inline nlohmann::json to_json(const JumpDiffusionConfig& c) {
 }
 
 inline nlohmann::json to_json(const FairPriceModelConfig& c) {
-    return std::visit([](const auto& config) { return to_json(config); }, c);
+    return std::visit(
+        [](const auto& config) {
+            return to_json(config);
+        },
+        c);
 }
 
 class MetadataWriter {

@@ -7,14 +7,13 @@
 namespace testing {
 
 nlohmann::json StateExporter::export_order(const Order& order) {
-    return nlohmann::json{
-        {"order_id", order.order_id.value()},
-        {"client_id", order.client_id.value()},
-        {"quantity", order.quantity.value()},
-        {"price", order.price.value()},
-        {"timestamp", order.timestamp.value()},
-        {"instrument_id", order.instrument_id.value()},
-        {"side", order.side == OrderSide::BUY ? "BUY" : "SELL"}};
+    return nlohmann::json{{"order_id", order.order_id.value()},
+                          {"client_id", order.client_id.value()},
+                          {"quantity", order.quantity.value()},
+                          {"price", order.price.value()},
+                          {"timestamp", order.timestamp.value()},
+                          {"instrument_id", order.instrument_id.value()},
+                          {"side", order.side == OrderSide::BUY ? "BUY" : "SELL"}};
 }
 
 nlohmann::json StateExporter::export_order_book(const OrderBook& book) {

@@ -76,9 +76,8 @@ bool MatchingEngine::cancel_order(const ClientID client_id, const OrderID order_
         return false;
     }
 
-    return side == OrderSide::BUY
-               ? remove_from_book_(order_id, price, book_.bids)
-               : remove_from_book_(order_id, price, book_.asks);
+    return side == OrderSide::BUY ? remove_from_book_(order_id, price, book_.bids)
+                                  : remove_from_book_(order_id, price, book_.asks);
 }
 
 ModifyResult MatchingEngine::modify_order(const ClientID client_id,

@@ -19,8 +19,7 @@ protected:
         // Check for external output directory (for end-to-end validation)
         const char* env_dir = std::getenv("CROSS_VAL_OUTPUT_DIR");
         if (env_dir != nullptr && std::strlen(env_dir) > 0) {
-            test_dir_ = fs::path(env_dir) /
-                        ("test_" + std::to_string(test_counter_++));
+            test_dir_ = fs::path(env_dir) / ("test_" + std::to_string(test_counter_++));
             preserve_output_ = true;
         } else {
             test_dir_ = fs::temp_directory_path() /
@@ -39,10 +38,8 @@ protected:
 
     // Verify that expected files were created
     void verify_output_files() {
-        EXPECT_TRUE(fs::exists(test_dir_ / "deltas.csv"))
-            << "deltas.csv not created";
-        EXPECT_TRUE(fs::exists(test_dir_ / "trades.csv"))
-            << "trades.csv not created";
+        EXPECT_TRUE(fs::exists(test_dir_ / "deltas.csv")) << "deltas.csv not created";
+        EXPECT_TRUE(fs::exists(test_dir_ / "trades.csv")) << "trades.csv not created";
         EXPECT_TRUE(fs::exists(test_dir_ / "states")) << "states directory not created";
     }
 
@@ -434,10 +431,10 @@ TEST_F(CrossValidationTest, Determinism_SameInputTwice_IdenticalOutput) {
 
         harness.schedule_order(Timestamp{100}, ClientID{1}, InstrumentID{1},
                                Quantity{100}, Price{1000}, OrderSide::BUY);
-        harness.schedule_order(Timestamp{200}, ClientID{2}, InstrumentID{1},
-                               Quantity{50}, Price{1000}, OrderSide::SELL);
-        harness.schedule_order(Timestamp{300}, ClientID{3}, InstrumentID{1},
-                               Quantity{50}, Price{1000}, OrderSide::SELL);
+        harness.schedule_order(Timestamp{200}, ClientID{2}, InstrumentID{1}, Quantity{50},
+                               Price{1000}, OrderSide::SELL);
+        harness.schedule_order(Timestamp{300}, ClientID{3}, InstrumentID{1}, Quantity{50},
+                               Price{1000}, OrderSide::SELL);
 
         harness.run(Timestamp{400});
 

@@ -314,7 +314,8 @@ TEST_F(SimulationEnginePerAgentLatencyTest, AgentWithoutExplicitLatencyUsesGloba
     EXPECT_EQ(engine->get_order_book(InstrumentID{1}).bids.size(), 1);
 }
 
-TEST_F(SimulationEnginePerAgentLatencyTest, DifferentLatenciesResultInDifferentOrderTiming) {
+TEST_F(SimulationEnginePerAgentLatencyTest,
+       DifferentLatenciesResultInDifferentOrderTiming) {
     // Agent 1 has latency 10, agent 2 has latency 50
     engine->set_agent_latency(ClientID{1}, Timestamp{10});
     engine->set_agent_latency(ClientID{2}, Timestamp{50});

@@ -9,7 +9,8 @@
  *
  * Provides agents with access to market state and actions (submit/cancel/modify orders).
  * A single instance (SimulationEngine) is shared across all agents. The context tracks
- * which agent is currently executing, so actions are attributed to the correct participant.
+ * which agent is currently executing, so actions are attributed to the correct
+ * participant.
  */
 class AgentContext {
 public:

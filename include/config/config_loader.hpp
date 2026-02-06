@@ -18,8 +18,9 @@ inline std::uint64_t get_uint64(const nlohmann::json& j, const std::string& key)
     if (val.is_number_integer()) {
         auto signed_val = val.get<std::int64_t>();
         if (signed_val < 0) {
-            throw std::runtime_error("Value for '" + key + "' must be non-negative, got: " +
-                                     std::to_string(signed_val));
+            throw std::runtime_error(
+                "Value for '" + key +
+                "' must be non-negative, got: " + std::to_string(signed_val));
         }
         return static_cast<std::uint64_t>(signed_val);
     }
@@ -34,7 +35,8 @@ inline std::uint64_t get_uint64(const nlohmann::json& j, const std::string& key)
             throw std::runtime_error("Value for '" + key + "' must be non-negative");
         }
         if (float_val > static_cast<double>(std::numeric_limits<std::uint64_t>::max())) {
-            throw std::runtime_error("Value for '" + key + "' exceeds maximum allowed value");
+            throw std::runtime_error("Value for '" + key +
+                                     "' exceeds maximum allowed value");
         }
         if (std::isnan(float_val) || std::isinf(float_val)) {
             throw std::runtime_error("Value for '" + key + "' must be a finite number");
@@ -81,10 +83,11 @@ inline FairPriceModelConfig parse_fair_price_config(const nlohmann::json& j) {
         return j.get<JumpDiffusionConfig>();
     }
     // GBM model: reject if jump diffusion params are present
-    if (j.contains("jump_intensity") || j.contains("jump_mean") || j.contains("jump_std")) {
-        throw std::runtime_error(
-            "GBM model cannot have jump diffusion parameters (jump_intensity, jump_mean, jump_std). "
-            "Use model='jump_diffusion' instead.");
+    if (j.contains("jump_intensity") || j.contains("jump_mean") ||
+        j.contains("jump_std")) {
+        throw std::runtime_error("GBM model cannot have jump diffusion parameters "
+                                 "(jump_intensity, jump_mean, jump_std). "
+                                 "Use model='jump_diffusion' instead.");
     }
     return j.get<FairPriceConfig>();
 }

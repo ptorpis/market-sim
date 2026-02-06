@@ -26,8 +26,7 @@ public:
     FairPriceGenerator(FairPriceConfig config, std::uint64_t seed)
         : config_(config),
           current_price_(static_cast<double>(config.initial_price.value())),
-          last_update_(Timestamp{0}),
-          rng_(seed) {}
+          last_update_(Timestamp{0}), rng_(seed) {}
 
     void advance_to(Timestamp t) override {
         if (t <= last_update_) {
@@ -37,10 +36,18 @@ public:
         auto dt = static_cast<double>((t - last_update_).value()) /
                   static_cast<double>(config_.tick_size.value());
 
+        if (config_.volatility == 0.0) {
+            // Pure drift (or no-op if drift == 0)
+            current_price_ *= std::exp(config_.drift * dt);
+            last_update_ = t;
+            return;
+        }
+
         std::normal_distribution<double> dist(0.0, 1.0);
         double z = dist(rng_);
 
-        double drift_term = (config_.drift - 0.5 * config_.volatility * config_.volatility) * dt;
+        double drift_term =
+            (config_.drift - 0.5 * config_.volatility * config_.volatility) * dt;
         double diffusion_term = config_.volatility * std::sqrt(dt) * z;
 
         current_price_ *= std::exp(drift_term + diffusion_term);
@@ -78,8 +85,7 @@ public:
     JumpDiffusionFairPriceGenerator(JumpDiffusionConfig config, std::uint64_t seed)
         : config_(config),
           current_price_(static_cast<double>(config.initial_price.value())),
-          last_update_(Timestamp{0}),
-          rng_(seed) {}
+          last_update_(Timestamp{0}), rng_(seed) {}
 
     void advance_to(Timestamp t) override {
         if (t <= last_update_) {
@@ -95,11 +101,14 @@ public:
         double z = normal_dist(rng_);
 
         // Jump compensation: k = E[exp(J)] - 1 = exp(mu_J + 0.5*sigma_J^2) - 1
-        double k = std::exp(config_.jump_mean + 0.5 * config_.jump_std * config_.jump_std) - 1.0;
+        double k =
+            std::exp(config_.jump_mean + 0.5 * config_.jump_std * config_.jump_std) - 1.0;
 
         // Drift adjusted for jump compensation
         double drift_term =
-            (config_.drift - 0.5 * config_.volatility * config_.volatility - config_.jump_intensity * k) * dt;
+            (config_.drift - 0.5 * config_.volatility * config_.volatility -
+             config_.jump_intensity * k) *
+            dt;
         double diffusion_term = config_.volatility * std::sqrt(dt) * z;
 
         // Jump component: N ~ Poisson(lambda * dt), each jump size is log-normal

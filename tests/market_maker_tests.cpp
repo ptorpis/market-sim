@@ -29,47 +29,41 @@ private:
 class MarketMakerTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        MarketMakerConfig config{
-            .instrument = InstrumentID{1},
-            .observation_noise = 0.0,
-            .half_spread = Price{5},
-            .quote_size = Quantity{50},
-            .update_interval = Timestamp{100},
-            .inventory_skew_factor = 0.5,
-            .max_position = Quantity{500}
-        };
+        MarketMakerConfig config{.instrument = InstrumentID{1},
+                                 .observation_noise = 0.0,
+                                 .half_spread = Price{5},
+                                 .quote_size = Quantity{50},
+                                 .update_interval = Timestamp{100},
+                                 .inventory_skew_factor = 0.5,
+                                 .max_position = Quantity{500}};
         mm = std::make_unique<TestableMarketMaker>(ClientID{1}, config, 42);
     }
 
     std::unique_ptr<TestableMarketMaker> mm;
 
     void add_bid(OrderBook& book, Price price, Quantity qty) {
-        Order order{
-            .order_id = OrderID{0},
-            .client_id = ClientID{0},
-            .quantity = qty,
-            .price = price,
-            .timestamp = Timestamp{0},
-            .instrument_id = InstrumentID{1},
-            .side = OrderSide::BUY,
-            .type = OrderType::LIMIT,
-            .status = OrderStatus::NEW
-        };
+        Order order{.order_id = OrderID{0},
+                    .client_id = ClientID{0},
+                    .quantity = qty,
+                    .price = price,
+                    .timestamp = Timestamp{0},
+                    .instrument_id = InstrumentID{1},
+                    .side = OrderSide::BUY,
+                    .type = OrderType::LIMIT,
+                    .status = OrderStatus::NEW};
         book.bids[price].push_back(order);
     }
 
     void add_ask(OrderBook& book, Price price, Quantity qty) {
-        Order order{
-            .order_id = OrderID{0},
-            .client_id = ClientID{0},
-            .quantity = qty,
-            .price = price,
-            .timestamp = Timestamp{0},
-            .instrument_id = InstrumentID{1},
-            .side = OrderSide::SELL,
-            .type = OrderType::LIMIT,
-            .status = OrderStatus::NEW
-        };
+        Order order{.order_id = OrderID{0},
+                    .client_id = ClientID{0},
+                    .quantity = qty,
+                    .price = price,
+                    .timestamp = Timestamp{0},
+                    .instrument_id = InstrumentID{1},
+                    .side = OrderSide::SELL,
+                    .type = OrderType::LIMIT,
+                    .status = OrderStatus::NEW};
         book.asks[price].push_back(order);
     }
 };
@@ -193,17 +187,15 @@ TEST_F(MarketMakerTest, InitialPositionIsZero) {
 
 TEST_F(MarketMakerTest, NetPositionCalculation) {
     // Simulate trades via on_trade
-    Trade buy_trade{
-        .timestamp = Timestamp{0},
-        .trade_id = TradeID{1},
-        .instrument_id = InstrumentID{1},
-        .buyer_order_id = OrderID{1},
-        .seller_order_id = OrderID{2},
-        .buyer_id = ClientID{1},  // Market maker is buyer
-        .seller_id = ClientID{2},
-        .quantity = Quantity{100},
-        .price = Price{1000}
-    };
+    Trade buy_trade{.timestamp = Timestamp{0},
+                    .trade_id = TradeID{1},
+                    .instrument_id = InstrumentID{1},
+                    .buyer_order_id = OrderID{1},
+                    .seller_order_id = OrderID{2},
+                    .buyer_id = ClientID{1}, // Market maker is buyer
+                    .seller_id = ClientID{2},
+                    .quantity = Quantity{100},
+                    .price = Price{1000}};
 
     // Create a mock context (we don't actually need it for on_trade)
     class MockContext : public AgentContext {
@@ -228,17 +220,15 @@ TEST_F(MarketMakerTest, NetPositionCalculation) {
     EXPECT_EQ(mm->net_position(), 100);
 
     // Now a sell trade
-    Trade sell_trade{
-        .timestamp = Timestamp{0},
-        .trade_id = TradeID{2},
-        .instrument_id = InstrumentID{1},
-        .buyer_order_id = OrderID{3},
-        .seller_order_id = OrderID{4},
-        .buyer_id = ClientID{2},
-        .seller_id = ClientID{1},  // Market maker is seller
-        .quantity = Quantity{60},
-        .price = Price{1010}
-    };
+    Trade sell_trade{.timestamp = Timestamp{0},
+                     .trade_id = TradeID{2},
+                     .instrument_id = InstrumentID{1},
+                     .buyer_order_id = OrderID{3},
+                     .seller_order_id = OrderID{4},
+                     .buyer_id = ClientID{2},
+                     .seller_id = ClientID{1}, // Market maker is seller
+                     .quantity = Quantity{60},
+                     .price = Price{1010}};
 
     mm->on_trade(ctx, sell_trade);
 

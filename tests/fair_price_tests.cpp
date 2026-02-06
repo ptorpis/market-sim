@@ -4,16 +4,13 @@
 
 class FairPriceTest : public ::testing::Test {
 protected:
-    FairPriceConfig make_config(Price initial = Price{1'000'000},
-                                double drift = 0.0,
+    FairPriceConfig make_config(Price initial = Price{1'000'000}, double drift = 0.0,
                                 double volatility = 0.01,
                                 Timestamp tick_size = Timestamp{1000}) {
-        return FairPriceConfig{
-            .initial_price = initial,
-            .drift = drift,
-            .volatility = volatility,
-            .tick_size = tick_size
-        };
+        return FairPriceConfig{.initial_price = initial,
+                               .drift = drift,
+                               .volatility = volatility,
+                               .tick_size = tick_size};
     }
 };
 
@@ -200,22 +197,18 @@ TEST_F(FairPriceTest, MultipleAdvancesAccumulateChanges) {
 
 class JumpDiffusionTest : public ::testing::Test {
 protected:
-    JumpDiffusionConfig make_config(Price initial = Price{1'000'000},
-                                    double drift = 0.0,
+    JumpDiffusionConfig make_config(Price initial = Price{1'000'000}, double drift = 0.0,
                                     double volatility = 0.01,
                                     Timestamp tick_size = Timestamp{1000},
-                                    double jump_intensity = 0.1,
-                                    double jump_mean = 0.0,
+                                    double jump_intensity = 0.1, double jump_mean = 0.0,
                                     double jump_std = 0.05) {
-        return JumpDiffusionConfig{
-            .initial_price = initial,
-            .drift = drift,
-            .volatility = volatility,
-            .tick_size = tick_size,
-            .jump_intensity = jump_intensity,
-            .jump_mean = jump_mean,
-            .jump_std = jump_std
-        };
+        return JumpDiffusionConfig{.initial_price = initial,
+                                   .drift = drift,
+                                   .volatility = volatility,
+                                   .tick_size = tick_size,
+                                   .jump_intensity = jump_intensity,
+                                   .jump_mean = jump_mean,
+                                   .jump_std = jump_std};
     }
 };
 
@@ -230,7 +223,8 @@ TEST_F(JumpDiffusionTest, InitialLastUpdateIsZero) {
 }
 
 TEST_F(JumpDiffusionTest, ConfigAccessor) {
-    auto config = make_config(Price{500'000}, 0.001, 0.02, Timestamp{500}, 0.2, -0.01, 0.1);
+    auto config =
+        make_config(Price{500'000}, 0.001, 0.02, Timestamp{500}, 0.2, -0.01, 0.1);
     JumpDiffusionFairPriceGenerator gen(config, 42);
 
     EXPECT_EQ(gen.config().initial_price, Price{500'000});
@@ -273,7 +267,8 @@ TEST_F(JumpDiffusionTest, AdvanceUpdatesLastUpdate) {
 }
 
 TEST_F(JumpDiffusionTest, SameSeedProducesSamePrices) {
-    auto config = make_config(Price{1'000'000}, 0.0001, 0.01, Timestamp{1000}, 0.1, 0.0, 0.05);
+    auto config =
+        make_config(Price{1'000'000}, 0.0001, 0.01, Timestamp{1000}, 0.1, 0.0, 0.05);
 
     JumpDiffusionFairPriceGenerator gen1(config, 12345);
     JumpDiffusionFairPriceGenerator gen2(config, 12345);
@@ -290,7 +285,8 @@ TEST_F(JumpDiffusionTest, SameSeedProducesSamePrices) {
 }
 
 TEST_F(JumpDiffusionTest, DifferentSeedsProduceDifferentPrices) {
-    auto config = make_config(Price{1'000'000}, 0.0001, 0.01, Timestamp{1000}, 0.1, 0.0, 0.05);
+    auto config =
+        make_config(Price{1'000'000}, 0.0001, 0.01, Timestamp{1000}, 0.1, 0.0, 0.05);
 
     JumpDiffusionFairPriceGenerator gen1(config, 12345);
     JumpDiffusionFairPriceGenerator gen2(config, 54321);
@@ -315,8 +311,10 @@ TEST_F(JumpDiffusionTest, ZeroVolatilityAndZeroJumpsWithZeroDrift) {
 
 TEST_F(JumpDiffusionTest, HighJumpIntensityProducesLargerVariation) {
     // Compare variance between low and high jump intensity over many runs
-    auto low_jump_config = make_config(Price{1'000'000}, 0.0, 0.01, Timestamp{1000}, 0.01, 0.0, 0.1);
-    auto high_jump_config = make_config(Price{1'000'000}, 0.0, 0.01, Timestamp{1000}, 1.0, 0.0, 0.1);
+    auto low_jump_config =
+        make_config(Price{1'000'000}, 0.0, 0.01, Timestamp{1000}, 0.01, 0.0, 0.1);
+    auto high_jump_config =
+        make_config(Price{1'000'000}, 0.0, 0.01, Timestamp{1000}, 1.0, 0.0, 0.1);
 
     double low_variance = 0.0;
     double high_variance = 0.0;
@@ -324,14 +322,18 @@ TEST_F(JumpDiffusionTest, HighJumpIntensityProducesLargerVariation) {
     const double initial = 1'000'000.0;
 
     for (int i = 0; i < num_samples; ++i) {
-        JumpDiffusionFairPriceGenerator low_gen(low_jump_config, static_cast<std::uint64_t>(i));
-        JumpDiffusionFairPriceGenerator high_gen(high_jump_config, static_cast<std::uint64_t>(i + 1000));
+        JumpDiffusionFairPriceGenerator low_gen(low_jump_config,
+                                                static_cast<std::uint64_t>(i));
+        JumpDiffusionFairPriceGenerator high_gen(high_jump_config,
+                                                 static_cast<std::uint64_t>(i + 1000));
 
         low_gen.advance_to(Timestamp{10000});
         high_gen.advance_to(Timestamp{10000});
 
-        double low_ret = (static_cast<double>(low_gen.true_price().value()) - initial) / initial;
-        double high_ret = (static_cast<double>(high_gen.true_price().value()) - initial) / initial;
+        double low_ret =
+            (static_cast<double>(low_gen.true_price().value()) - initial) / initial;
+        double high_ret =
+            (static_cast<double>(high_gen.true_price().value()) - initial) / initial;
 
         low_variance += low_ret * low_ret;
         high_variance += high_ret * high_ret;
@@ -343,14 +345,13 @@ TEST_F(JumpDiffusionTest, HighJumpIntensityProducesLargerVariation) {
 
 TEST_F(JumpDiffusionTest, JumpsCanProduceLargePriceMovements) {
     // Configure large jumps to test adverse selection scenarios
-    auto config = make_config(
-        Price{1'000'000},
-        0.0,             // no drift
-        0.001,           // very low diffusion volatility
-        Timestamp{1000},
-        0.5,             // moderate jump intensity
-        0.0,             // mean jump size
-        0.2              // large jump std - allows for big jumps
+    auto config = make_config(Price{1'000'000},
+                              0.0,   // no drift
+                              0.001, // very low diffusion volatility
+                              Timestamp{1000},
+                              0.5, // moderate jump intensity
+                              0.0, // mean jump size
+                              0.2  // large jump std - allows for big jumps
     );
 
     bool found_large_move = false;
@@ -374,7 +375,8 @@ TEST_F(JumpDiffusionTest, JumpsCanProduceLargePriceMovements) {
         }
     }
 
-    EXPECT_TRUE(found_large_move) << "Jump diffusion should be capable of producing large price movements";
+    EXPECT_TRUE(found_large_move)
+        << "Jump diffusion should be capable of producing large price movements";
 }
 
 TEST_F(JumpDiffusionTest, ImplementsIFairPriceSourceInterface) {
@@ -413,13 +415,16 @@ std::vector<double> calculate_log_returns(const std::vector<double>& prices) {
 
 double calculate_mean(const std::vector<double>& data) {
     if (data.empty()) return 0.0;
-    return std::accumulate(data.begin(), data.end(), 0.0) / static_cast<double>(data.size());
+    return std::accumulate(data.begin(), data.end(), 0.0) /
+           static_cast<double>(data.size());
 }
 
 double calculate_variance(const std::vector<double>& data, double mean) {
     if (data.size() < 2) return 0.0;
     double sum_sq = std::transform_reduce(data.begin(), data.end(), 0.0, std::plus<>(),
-                                          [mean](double x) { return (x - mean) * (x - mean); });
+                                          [mean](double x) {
+                                              return (x - mean) * (x - mean);
+                                          });
     return sum_sq / static_cast<double>(data.size() - 1);
 }
 
@@ -433,7 +438,8 @@ double calculate_excess_kurtosis(const std::vector<double>& data) {
                                       [mean](double x) {
                                           double diff = x - mean;
                                           return diff * diff * diff * diff;
-                                      }) / static_cast<double>(data.size());
+                                      }) /
+                static_cast<double>(data.size());
 
     return (m4 / (variance * variance)) - 3.0;
 }
@@ -444,15 +450,17 @@ struct SeparatedReturns {
     int jump_count;
 };
 
-SeparatedReturns separate_jumps(const std::vector<double>& returns, double expected_diffusion_std,
-                                 double threshold_multiplier = 3.5) {
+SeparatedReturns separate_jumps(const std::vector<double>& returns,
+                                double expected_diffusion_std,
+                                double threshold_multiplier = 3.5) {
     SeparatedReturns result{};
     double threshold = threshold_multiplier * expected_diffusion_std;
 
-    std::partition_copy(returns.begin(), returns.end(),
-                        std::back_inserter(result.jump_returns),
-                        std::back_inserter(result.diffusion_returns),
-                        [threshold](double r) { return std::abs(r) > threshold; });
+    std::partition_copy(
+        returns.begin(), returns.end(), std::back_inserter(result.jump_returns),
+        std::back_inserter(result.diffusion_returns), [threshold](double r) {
+            return std::abs(r) > threshold;
+        });
 
     result.jump_count = static_cast<int>(result.jump_returns.size());
     return result;
@@ -479,8 +487,7 @@ protected:
             .initial_price = Price{static_cast<std::uint64_t>(INITIAL_PRICE)},
             .drift = DRIFT,
             .volatility = VOLATILITY,
-            .tick_size = Timestamp{1000}
-        };
+            .tick_size = Timestamp{1000}};
     }
 
     std::vector<double> generate_price_series(std::uint64_t seed) {
@@ -508,8 +515,7 @@ TEST_F(GBMStatisticalTest, DiffusionVolatilityMatchesExpected) {
     // Allow 10% relative error for finite sample
     double relative_error = std::abs(realized_volatility - VOLATILITY) / VOLATILITY;
     EXPECT_LT(relative_error, 0.10)
-        << "Realized volatility: " << realized_volatility
-        << ", Expected: " << VOLATILITY
+        << "Realized volatility: " << realized_volatility << ", Expected: " << VOLATILITY
         << ", Relative error: " << (relative_error * 100) << "%";
 }
 
@@ -524,9 +530,8 @@ TEST_F(GBMStatisticalTest, ReturnsAreNormallyDistributed_KurtosisTest) {
     // Standard error of kurtosis: sqrt(24/N), use 4-sigma tolerance
     double tolerance = 4.0 * std::sqrt(24.0 / static_cast<double>(returns.size()));
 
-    EXPECT_NEAR(excess_kurtosis, 0.0, tolerance)
-        << "Excess kurtosis: " << excess_kurtosis
-        << ", Expected: 0 (normal distribution)";
+    EXPECT_NEAR(excess_kurtosis, 0.0, tolerance) << "Excess kurtosis: " << excess_kurtosis
+                                                 << ", Expected: 0 (normal distribution)";
 }
 
 TEST_F(GBMStatisticalTest, MeanReturnConsistentWithZeroDrift) {
@@ -542,10 +547,8 @@ TEST_F(GBMStatisticalTest, MeanReturnConsistentWithZeroDrift) {
     double se_mean = std_dev / std::sqrt(static_cast<double>(returns.size()));
     double z_score = std::abs(mean - expected_mean) / se_mean;
 
-    EXPECT_LT(z_score, 4.0)
-        << "Mean return: " << mean
-        << ", Expected: " << expected_mean
-        << ", Z-score: " << z_score;
+    EXPECT_LT(z_score, 4.0) << "Mean return: " << mean << ", Expected: " << expected_mean
+                            << ", Z-score: " << z_score;
 }
 
 TEST_F(GBMStatisticalTest, NoLargeJumps) {
@@ -558,15 +561,16 @@ TEST_F(GBMStatisticalTest, NoLargeJumps) {
     double std_dev = std::sqrt(calculate_variance(returns, mean));
     double threshold = 4.0 * std_dev;
 
-    int large_moves = static_cast<int>(std::count_if(returns.begin(), returns.end(),
-        [mean, threshold](double r) { return std::abs(r - mean) > threshold; }));
+    int large_moves = static_cast<int>(
+        std::count_if(returns.begin(), returns.end(), [mean, threshold](double r) {
+            return std::abs(r - mean) > threshold;
+        }));
 
     // For normal distribution, P(|X| > 4 sigma) ~= 0.006%
     double max_expected = 0.0002 * static_cast<double>(returns.size()) * 3; // 3x buffer
 
-    EXPECT_LT(large_moves, max_expected)
-        << "Large moves (>4 sigma): " << large_moves
-        << ", Max expected: " << max_expected;
+    EXPECT_LT(large_moves, max_expected) << "Large moves (>4 sigma): " << large_moves
+                                         << ", Max expected: " << max_expected;
 }
 
 // =============================================================================
@@ -578,11 +582,11 @@ protected:
     // Bounded parameters to prevent price drift issues
     static constexpr int NUM_TICKS = 10'000;
     static constexpr double INITIAL_PRICE = 1'000'000.0;
-    static constexpr double VOLATILITY = 0.002;    // Very low diffusion for clean separation
+    static constexpr double VOLATILITY = 0.002; // Very low diffusion for clean separation
     static constexpr double DRIFT = 0.0;
     static constexpr double JUMP_INTENSITY = 0.01; // ~100 jumps in 10k ticks
     static constexpr double JUMP_MEAN = 0.0;
-    static constexpr double JUMP_STD = 0.05;       // 5% jump std (25x diffusion)
+    static constexpr double JUMP_STD = 0.05; // 5% jump std (25x diffusion)
 
     // Threshold multiplier for separating jumps from diffusion
     // At 4 sigma of diffusion, threshold = 4 * 0.002 = 0.008
@@ -598,8 +602,7 @@ protected:
             .tick_size = Timestamp{1000},
             .jump_intensity = JUMP_INTENSITY,
             .jump_mean = JUMP_MEAN,
-            .jump_std = JUMP_STD
-        };
+            .jump_std = JUMP_STD};
     }
 
     std::vector<double> generate_price_series(std::uint64_t seed) {
@@ -642,12 +645,14 @@ TEST_F(JumpDiffusionStatisticalTest, JumpFrequencyFollowsPoisson) {
     // Variance of detected jumps: Poisson + detection uncertainty
     // Approximate as Poisson with mean = expected_detected
     double std_detected = std::sqrt(expected_detected);
-    double z_score = std::abs(static_cast<double>(separated.jump_count) - expected_detected) / std_detected;
+    double z_score =
+        std::abs(static_cast<double>(separated.jump_count) - expected_detected) /
+        std_detected;
 
-    EXPECT_LT(z_score, 4.0)
-        << "Detected jumps: " << separated.jump_count
-        << ", Expected (with " << (detection_rate * 100) << "% detection): " << expected_detected
-        << ", Z-score: " << z_score;
+    EXPECT_LT(z_score, 4.0) << "Detected jumps: " << separated.jump_count
+                            << ", Expected (with " << (detection_rate * 100)
+                            << "% detection): " << expected_detected
+                            << ", Z-score: " << z_score;
 }
 
 TEST_F(JumpDiffusionStatisticalTest, DiffusionComponentVolatilityMatchesExpected) {
@@ -659,14 +664,14 @@ TEST_F(JumpDiffusionStatisticalTest, DiffusionComponentVolatilityMatchesExpected
     ASSERT_GT(separated.diffusion_returns.size(), 100UL);
 
     double mean = calculate_mean(separated.diffusion_returns);
-    double realized_volatility = std::sqrt(calculate_variance(separated.diffusion_returns, mean));
+    double realized_volatility =
+        std::sqrt(calculate_variance(separated.diffusion_returns, mean));
 
     // Diffusion returns are truncated at threshold, so expect slightly lower variance
     // Allow 30% relative error due to truncation and small sample effects
     double relative_error = std::abs(realized_volatility - VOLATILITY) / VOLATILITY;
     EXPECT_LT(relative_error, 0.30)
-        << "Diffusion volatility: " << realized_volatility
-        << ", Expected: " << VOLATILITY
+        << "Diffusion volatility: " << realized_volatility << ", Expected: " << VOLATILITY
         << ", Relative error: " << (relative_error * 100) << "%";
 }
 
@@ -679,9 +684,8 @@ TEST_F(JumpDiffusionStatisticalTest, FatTailsPresent_HighKurtosis) {
     double excess_kurtosis = calculate_excess_kurtosis(returns);
 
     // Jump diffusion should have positive excess kurtosis (fat tails)
-    EXPECT_GT(excess_kurtosis, 0.0)
-        << "Excess kurtosis: " << excess_kurtosis
-        << ", Expected: > 0 (fat tails from jumps)";
+    EXPECT_GT(excess_kurtosis, 0.0) << "Excess kurtosis: " << excess_kurtosis
+                                    << ", Expected: > 0 (fat tails from jumps)";
 }
 
 TEST_F(JumpDiffusionStatisticalTest, TotalVarianceIsCorrect) {
@@ -693,11 +697,13 @@ TEST_F(JumpDiffusionStatisticalTest, TotalVarianceIsCorrect) {
     double realized_variance = calculate_variance(returns, mean);
 
     // Theoretical: Var = sigma^2 + lambda * E[J^2]
-    double expected_variance = VOLATILITY * VOLATILITY +
-                               JUMP_INTENSITY * (JUMP_MEAN * JUMP_MEAN + JUMP_STD * JUMP_STD);
+    double expected_variance =
+        VOLATILITY * VOLATILITY +
+        JUMP_INTENSITY * (JUMP_MEAN * JUMP_MEAN + JUMP_STD * JUMP_STD);
 
     // Allow 25% relative error for finite sample
-    double relative_error = std::abs(realized_variance - expected_variance) / expected_variance;
+    double relative_error =
+        std::abs(realized_variance - expected_variance) / expected_variance;
     EXPECT_LT(relative_error, 0.25)
         << "Realized variance: " << realized_variance
         << ", Expected: " << expected_variance
@@ -717,8 +723,7 @@ TEST_F(JumpDiffusionStatisticalTest, JumpSizesAreLogNormal) {
     double jump_mean = calculate_mean(separated.jump_returns);
 
     // Jump mean should be close to JUMP_MEAN (with wide tolerance due to selection bias)
-    EXPECT_NEAR(jump_mean, JUMP_MEAN, 0.03)
-        << "Observed jump mean: " << jump_mean;
+    EXPECT_NEAR(jump_mean, JUMP_MEAN, 0.03) << "Observed jump mean: " << jump_mean;
 }
 
 TEST_F(JumpDiffusionStatisticalTest, AdverseSelectionPotential) {
@@ -730,14 +735,15 @@ TEST_F(JumpDiffusionStatisticalTest, AdverseSelectionPotential) {
         GTEST_SKIP() << "No jumps detected";
     }
 
-    auto max_it = std::max_element(separated.jump_returns.begin(), separated.jump_returns.end(),
-        [](double a, double b) { return std::abs(a) < std::abs(b); });
+    auto max_it = std::max_element(separated.jump_returns.begin(),
+                                   separated.jump_returns.end(), [](double a, double b) {
+                                       return std::abs(a) < std::abs(b);
+                                   });
     double max_jump = std::abs(*max_it);
 
     // Jumps should be significantly larger than diffusion noise
     EXPECT_GT(max_jump, 3 * VOLATILITY)
-        << "Max jump: " << max_jump
-        << ", Expected: > " << (3 * VOLATILITY);
+        << "Max jump: " << max_jump << ", Expected: > " << (3 * VOLATILITY);
 }
 
 TEST_F(JumpDiffusionStatisticalTest, CompareWithPureGBM_HigherVariance) {
@@ -753,8 +759,7 @@ TEST_F(JumpDiffusionStatisticalTest, CompareWithPureGBM_HigherVariance) {
         .initial_price = Price{static_cast<std::uint64_t>(INITIAL_PRICE)},
         .drift = DRIFT,
         .volatility = VOLATILITY,
-        .tick_size = Timestamp{1000}
-    };
+        .tick_size = Timestamp{1000}};
     FairPriceGenerator gbm_gen(gbm_config, seed);
     std::vector<double> gbm_prices;
     gbm_prices.reserve(NUM_TICKS + 1);
@@ -768,8 +773,7 @@ TEST_F(JumpDiffusionStatisticalTest, CompareWithPureGBM_HigherVariance) {
     double gbm_variance = calculate_variance(gbm_returns, calculate_mean(gbm_returns));
 
     EXPECT_GT(jd_variance, gbm_variance)
-        << "JD variance: " << jd_variance
-        << ", GBM variance: " << gbm_variance;
+        << "JD variance: " << jd_variance << ", GBM variance: " << gbm_variance;
 }
 
 TEST_F(JumpDiffusionStatisticalTest, CompareWithPureGBM_HigherKurtosis) {
@@ -784,8 +788,7 @@ TEST_F(JumpDiffusionStatisticalTest, CompareWithPureGBM_HigherKurtosis) {
         .initial_price = Price{static_cast<std::uint64_t>(INITIAL_PRICE)},
         .drift = DRIFT,
         .volatility = VOLATILITY,
-        .tick_size = Timestamp{1000}
-    };
+        .tick_size = Timestamp{1000}};
     FairPriceGenerator gbm_gen(gbm_config, seed);
     std::vector<double> gbm_prices;
     gbm_prices.reserve(NUM_TICKS + 1);
@@ -798,7 +801,6 @@ TEST_F(JumpDiffusionStatisticalTest, CompareWithPureGBM_HigherKurtosis) {
     ASSERT_GT(gbm_returns.size(), 100UL);
     double gbm_kurtosis = calculate_excess_kurtosis(gbm_returns);
 
-    EXPECT_GT(jd_kurtosis, gbm_kurtosis)
-        << "JD excess kurtosis: " << jd_kurtosis
-        << ", GBM excess kurtosis: " << gbm_kurtosis;
+    EXPECT_GT(jd_kurtosis, gbm_kurtosis) << "JD excess kurtosis: " << jd_kurtosis
+                                         << ", GBM excess kurtosis: " << gbm_kurtosis;
 }

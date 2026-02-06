@@ -362,8 +362,10 @@ TEST_F(InformedTraderTest, IsOrderStaleReturnsFalseWhenThresholdsAreZero) {
     config.stale_order_threshold = Price{0};
     InformedTrader trader(ClientID{1}, config, 42);
 
-    TrackedOrder order{
-        .order_id = OrderID{1}, .price = Price{100}, .side = OrderSide::BUY, .remaining_quantity = Quantity{10}};
+    TrackedOrder order{.order_id = OrderID{1},
+                       .price = Price{100},
+                       .side = OrderSide::BUY,
+                       .remaining_quantity = Quantity{10}};
 
     EXPECT_FALSE(InformedTraderTestAccess::is_order_stale(trader, order, Price{50}));
     EXPECT_FALSE(InformedTraderTestAccess::is_order_stale(trader, order, Price{200}));
@@ -373,8 +375,10 @@ TEST_F(InformedTraderTest, BuyOrderStaleWhenPriceTooFarAboveFair) {
     InformedTrader trader(ClientID{1}, config, 42);
 
     // BUY order at 100, threshold is 20
-    TrackedOrder order{
-        .order_id = OrderID{1}, .price = Price{100}, .side = OrderSide::BUY, .remaining_quantity = Quantity{10}};
+    TrackedOrder order{.order_id = OrderID{1},
+                       .price = Price{100},
+                       .side = OrderSide::BUY,
+                       .remaining_quantity = Quantity{10}};
 
     // Fair price at 79: 100 > 79 + 20 = 99? Yes, stale
     EXPECT_TRUE(InformedTraderTestAccess::is_order_stale(trader, order, Price{79}));
@@ -390,8 +394,10 @@ TEST_F(InformedTraderTest, SellOrderStaleWhenPriceTooFarBelowFair) {
     InformedTrader trader(ClientID{1}, config, 42);
 
     // SELL order at 100, threshold is 20
-    TrackedOrder order{
-        .order_id = OrderID{1}, .price = Price{100}, .side = OrderSide::SELL, .remaining_quantity = Quantity{10}};
+    TrackedOrder order{.order_id = OrderID{1},
+                       .price = Price{100},
+                       .side = OrderSide::SELL,
+                       .remaining_quantity = Quantity{10}};
 
     // Fair price at 121: 100 + 20 < 121? 120 < 121? Yes, stale
     EXPECT_TRUE(InformedTraderTestAccess::is_order_stale(trader, order, Price{121}));
@@ -454,21 +460,21 @@ TEST_F(InformedTraderTest, TradesWhenEdgeExistsWithDummyFairPrice) {
     engine.add_agent<InformedTrader>(ClientID{1}, config, 42);
 
     // Add liquidity: sell order at 100
-    engine.scheduler().schedule(
-        OrderSubmitted{.timestamp = Timestamp{0},
-                       .agent_id = ClientID{99},
-                       .instrument_id = InstrumentID{1},
-                       .quantity = Quantity{100},
-                       .price = Price{100},
-                       .side = OrderSide::SELL,
-                       .type = OrderType::LIMIT});
+    engine.scheduler().schedule(OrderSubmitted{.timestamp = Timestamp{0},
+                                               .agent_id = ClientID{99},
+                                               .instrument_id = InstrumentID{1},
+                                               .quantity = Quantity{100},
+                                               .price = Price{100},
+                                               .side = OrderSide::SELL,
+                                               .type = OrderType::LIMIT});
 
     engine.step();
 
     // Schedule informed trader wakeup
     // Fair price is 120, best ask is 100, edge needed is 5
     // 120 > 100 + 5? Yes, informed trader should buy 5 units
-    engine.scheduler().schedule(AgentWakeup{.timestamp = Timestamp{1}, .agent_id = ClientID{1}});
+    engine.scheduler().schedule(
+        AgentWakeup{.timestamp = Timestamp{1}, .agent_id = ClientID{1}});
 
     // Run until trade is processed
     engine.run_until(Timestamp{10});
@@ -494,21 +500,21 @@ TEST_F(InformedTraderTest, NoTradeWhenNoEdgeWithDummyFairPrice) {
     engine.add_agent<InformedTrader>(ClientID{1}, config, 42);
 
     // Add liquidity: sell order at 100
-    engine.scheduler().schedule(
-        OrderSubmitted{.timestamp = Timestamp{0},
-                       .agent_id = ClientID{99},
-                       .instrument_id = InstrumentID{1},
-                       .quantity = Quantity{100},
-                       .price = Price{100},
-                       .side = OrderSide::SELL,
-                       .type = OrderType::LIMIT});
+    engine.scheduler().schedule(OrderSubmitted{.timestamp = Timestamp{0},
+                                               .agent_id = ClientID{99},
+                                               .instrument_id = InstrumentID{1},
+                                               .quantity = Quantity{100},
+                                               .price = Price{100},
+                                               .side = OrderSide::SELL,
+                                               .type = OrderType::LIMIT});
 
     engine.step();
 
     // Schedule informed trader wakeup
     // Fair price is 100, best ask is 100, edge needed is 5
     // 100 > 100 + 5? No, informed trader should NOT buy
-    engine.scheduler().schedule(AgentWakeup{.timestamp = Timestamp{1}, .agent_id = ClientID{1}});
+    engine.scheduler().schedule(
+        AgentWakeup{.timestamp = Timestamp{1}, .agent_id = ClientID{1}});
 
     engine.run_until(Timestamp{10});
 

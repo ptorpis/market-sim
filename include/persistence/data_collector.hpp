@@ -127,8 +127,10 @@ public:
             best_ask = book.asks.begin()->first;
         }
 
-        csv_writer_.write_market_state(MarketStateSnapshot{
-            .timestamp = now, .fair_price = fair_price, .best_bid = best_bid, .best_ask = best_ask});
+        csv_writer_.write_market_state(MarketStateSnapshot{.timestamp = now,
+                                                           .fair_price = fair_price,
+                                                           .best_bid = best_bid,
+                                                           .best_ask = best_ask});
     }
 
     MetadataWriter& metadata() { return metadata_; }

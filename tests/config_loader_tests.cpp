@@ -12,12 +12,10 @@ using json = nlohmann::json;
 // =============================================================================
 
 TEST(ConfigLoaderTest, ParseFairPriceConfig) {
-    json j = {
-        {"initial_price", 1000000},
-        {"drift", 0.0001},
-        {"volatility", 0.005},
-        {"tick_size", 1000}
-    };
+    json j = {{"initial_price", 1000000},
+              {"drift", 0.0001},
+              {"volatility", 0.005},
+              {"tick_size", 1000}};
 
     FairPriceConfig config = j.get<FairPriceConfig>();
 
@@ -29,8 +27,7 @@ TEST(ConfigLoaderTest, ParseFairPriceConfig) {
 
 TEST(ConfigLoaderTest, FairPriceConfigMissingFieldThrows) {
     json j = {
-        {"initial_price", 1000000},
-        {"drift", 0.0001}
+        {"initial_price", 1000000}, {"drift", 0.0001}
         // Missing volatility and tick_size
     };
 
@@ -42,15 +39,9 @@ TEST(ConfigLoaderTest, FairPriceConfigMissingFieldThrows) {
 // =============================================================================
 
 TEST(ConfigLoaderTest, ParseJumpDiffusionConfig) {
-    json j = {
-        {"initial_price", 1000000},
-        {"drift", 0.0001},
-        {"volatility", 0.005},
-        {"tick_size", 1000},
-        {"jump_intensity", 0.1},
-        {"jump_mean", 0.0},
-        {"jump_std", 0.05}
-    };
+    json j = {{"initial_price", 1000000}, {"drift", 0.0001},       {"volatility", 0.005},
+              {"tick_size", 1000},        {"jump_intensity", 0.1}, {"jump_mean", 0.0},
+              {"jump_std", 0.05}};
 
     JumpDiffusionConfig config = j.get<JumpDiffusionConfig>();
 
@@ -64,13 +55,11 @@ TEST(ConfigLoaderTest, ParseJumpDiffusionConfig) {
 }
 
 TEST(ConfigLoaderTest, ParseFairPriceModelConfigGBM) {
-    json j = {
-        {"model", "gbm"},
-        {"initial_price", 1000000},
-        {"drift", 0.0001},
-        {"volatility", 0.005},
-        {"tick_size", 1000}
-    };
+    json j = {{"model", "gbm"},
+              {"initial_price", 1000000},
+              {"drift", 0.0001},
+              {"volatility", 0.005},
+              {"tick_size", 1000}};
 
     FairPriceModelConfig config = parse_fair_price_config(j);
 
@@ -81,16 +70,10 @@ TEST(ConfigLoaderTest, ParseFairPriceModelConfigGBM) {
 }
 
 TEST(ConfigLoaderTest, ParseFairPriceModelConfigJumpDiffusion) {
-    json j = {
-        {"model", "jump_diffusion"},
-        {"initial_price", 1000000},
-        {"drift", 0.0001},
-        {"volatility", 0.005},
-        {"tick_size", 1000},
-        {"jump_intensity", 0.2},
-        {"jump_mean", -0.01},
-        {"jump_std", 0.1}
-    };
+    json j = {{"model", "jump_diffusion"}, {"initial_price", 1000000},
+              {"drift", 0.0001},           {"volatility", 0.005},
+              {"tick_size", 1000},         {"jump_intensity", 0.2},
+              {"jump_mean", -0.01},        {"jump_std", 0.1}};
 
     FairPriceModelConfig config = parse_fair_price_config(j);
 
@@ -104,12 +87,10 @@ TEST(ConfigLoaderTest, ParseFairPriceModelConfigJumpDiffusion) {
 
 TEST(ConfigLoaderTest, ParseFairPriceModelConfigDefaultsToGBM) {
     // Without "model" field, should default to GBM
-    json j = {
-        {"initial_price", 1000000},
-        {"drift", 0.0001},
-        {"volatility", 0.005},
-        {"tick_size", 1000}
-    };
+    json j = {{"initial_price", 1000000},
+              {"drift", 0.0001},
+              {"volatility", 0.005},
+              {"tick_size", 1000}};
 
     FairPriceModelConfig config = parse_fair_price_config(j);
 
@@ -121,17 +102,15 @@ TEST(ConfigLoaderTest, ParseFairPriceModelConfigDefaultsToGBM) {
 // =============================================================================
 
 TEST(ConfigLoaderTest, ParseNoiseTraderConfig) {
-    json j = {
-        {"instrument", 1},
-        {"observation_noise", 50.0},
-        {"spread", 36},
-        {"min_quantity", 10},
-        {"max_quantity", 100},
-        {"min_interval", 50},
-        {"max_interval", 200},
-        {"adverse_fill_threshold", 100},
-            {"stale_order_threshold", 1000}
-    };
+    json j = {{"instrument", 1},
+              {"observation_noise", 50.0},
+              {"spread", 36},
+              {"min_quantity", 10},
+              {"max_quantity", 100},
+              {"min_interval", 50},
+              {"max_interval", 200},
+              {"adverse_fill_threshold", 100},
+              {"stale_order_threshold", 1000}};
 
     NoiseTraderConfig config = j.get<NoiseTraderConfig>();
 
@@ -151,24 +130,21 @@ TEST(ConfigLoaderTest, ParseNoiseTraderConfig) {
 // =============================================================================
 
 TEST(ConfigLoaderTest, ParseNoiseTraderGroupConfig) {
-    json j = {
-        {"count", 5},
-        {"start_client_id", 100},
-        {"base_seed", 42},
-        {"initial_wakeup_start", 10},
-        {"initial_wakeup_step", 20},
-        {"config", {
-            {"instrument", 1},
-            {"observation_noise", 50.0},
-            {"spread", 36},
-            {"min_quantity", 10},
-            {"max_quantity", 100},
-            {"min_interval", 50},
-            {"max_interval", 200},
-            {"adverse_fill_threshold", 100},
-            {"stale_order_threshold", 1000}
-        }}
-    };
+    json j = {{"count", 5},
+              {"start_client_id", 100},
+              {"base_seed", 42},
+              {"initial_wakeup_start", 10},
+              {"initial_wakeup_step", 20},
+              {"config",
+               {{"instrument", 1},
+                {"observation_noise", 50.0},
+                {"spread", 36},
+                {"min_quantity", 10},
+                {"max_quantity", 100},
+                {"min_interval", 50},
+                {"max_interval", 200},
+                {"adverse_fill_threshold", 100},
+                {"stale_order_threshold", 1000}}}};
 
     NoiseTraderGroupConfig config = j.get<NoiseTraderGroupConfig>();
 
@@ -187,15 +163,10 @@ TEST(ConfigLoaderTest, ParseNoiseTraderGroupConfig) {
 // =============================================================================
 
 TEST(ConfigLoaderTest, ParseMarketMakerConfig) {
-    json j = {
-        {"instrument", 1},
-        {"observation_noise", 10.0},
-        {"half_spread", 5},
-        {"quote_size", 50},
-        {"update_interval", 100},
-        {"inventory_skew_factor", 0.5},
-        {"max_position", 500}
-    };
+    json j = {{"instrument", 1},        {"observation_noise", 10.0},
+              {"half_spread", 5},       {"quote_size", 50},
+              {"update_interval", 100}, {"inventory_skew_factor", 0.5},
+              {"max_position", 500}};
 
     MarketMakerConfig config = j.get<MarketMakerConfig>();
 
@@ -213,17 +184,15 @@ TEST(ConfigLoaderTest, ParseMarketMakerConfig) {
 // =============================================================================
 
 TEST(ConfigLoaderTest, ParseInformedTraderConfig) {
-    json j = {
-        {"instrument", 1},
-        {"min_quantity", 20},
-        {"max_quantity", 80},
-        {"min_interval", 100},
-        {"max_interval", 500},
-        {"min_edge", 3},
-        {"observation_noise", 5.0},
-        {"adverse_fill_threshold", 50},
-            {"stale_order_threshold", 500}
-    };
+    json j = {{"instrument", 1},
+              {"min_quantity", 20},
+              {"max_quantity", 80},
+              {"min_interval", 100},
+              {"max_interval", 500},
+              {"min_edge", 3},
+              {"observation_noise", 5.0},
+              {"adverse_fill_threshold", 50},
+              {"stale_order_threshold", 500}};
 
     InformedTraderConfig config = j.get<InformedTraderConfig>();
 
@@ -243,12 +212,7 @@ TEST(ConfigLoaderTest, ParseInformedTraderConfig) {
 // =============================================================================
 
 TEST(ConfigLoaderTest, ParseInitialOrderBuy) {
-    json j = {
-        {"instrument", 1},
-        {"side", "BUY"},
-        {"price", 999900},
-        {"quantity", 500}
-    };
+    json j = {{"instrument", 1}, {"side", "BUY"}, {"price", 999900}, {"quantity", 500}};
 
     InitialOrder order = j.get<InitialOrder>();
 
@@ -259,12 +223,7 @@ TEST(ConfigLoaderTest, ParseInitialOrderBuy) {
 }
 
 TEST(ConfigLoaderTest, ParseInitialOrderSell) {
-    json j = {
-        {"instrument", 1},
-        {"side", "SELL"},
-        {"price", 1000100},
-        {"quantity", 500}
-    };
+    json j = {{"instrument", 1}, {"side", "SELL"}, {"price", 1000100}, {"quantity", 500}};
 
     InitialOrder order = j.get<InitialOrder>();
 
@@ -276,23 +235,20 @@ TEST(ConfigLoaderTest, ParseInitialOrderSell) {
 // =============================================================================
 
 TEST(ConfigLoaderTest, ParseAgentConfigNoiseTrader) {
-    json j = {
-        {"client_id", 1},
-        {"type", "NoiseTrader"},
-        {"initial_wakeup", 10},
-        {"seed", 100},
-        {"config", {
-            {"instrument", 1},
-            {"observation_noise", 50.0},
-            {"spread", 36},
-            {"min_quantity", 10},
-            {"max_quantity", 100},
-            {"min_interval", 50},
-            {"max_interval", 200},
-            {"adverse_fill_threshold", 100},
-            {"stale_order_threshold", 1000}
-        }}
-    };
+    json j = {{"client_id", 1},
+              {"type", "NoiseTrader"},
+              {"initial_wakeup", 10},
+              {"seed", 100},
+              {"config",
+               {{"instrument", 1},
+                {"observation_noise", 50.0},
+                {"spread", 36},
+                {"min_quantity", 10},
+                {"max_quantity", 100},
+                {"min_interval", 50},
+                {"max_interval", 200},
+                {"adverse_fill_threshold", 100},
+                {"stale_order_threshold", 1000}}}};
 
     AgentConfig config = j.get<AgentConfig>();
 
@@ -304,21 +260,18 @@ TEST(ConfigLoaderTest, ParseAgentConfigNoiseTrader) {
 }
 
 TEST(ConfigLoaderTest, ParseAgentConfigMarketMaker) {
-    json j = {
-        {"client_id", 10},
-        {"type", "MarketMaker"},
-        {"initial_wakeup", 5},
-        {"seed", 999},
-        {"config", {
-            {"instrument", 1},
-            {"observation_noise", 10.0},
-            {"half_spread", 5},
-            {"quote_size", 50},
-            {"update_interval", 100},
-            {"inventory_skew_factor", 0.5},
-            {"max_position", 500}
-        }}
-    };
+    json j = {{"client_id", 10},
+              {"type", "MarketMaker"},
+              {"initial_wakeup", 5},
+              {"seed", 999},
+              {"config",
+               {{"instrument", 1},
+                {"observation_noise", 10.0},
+                {"half_spread", 5},
+                {"quote_size", 50},
+                {"update_interval", 100},
+                {"inventory_skew_factor", 0.5},
+                {"max_position", 500}}}};
 
     AgentConfig config = j.get<AgentConfig>();
 
@@ -328,23 +281,20 @@ TEST(ConfigLoaderTest, ParseAgentConfigMarketMaker) {
 }
 
 TEST(ConfigLoaderTest, ParseAgentConfigInformedTrader) {
-    json j = {
-        {"client_id", 20},
-        {"type", "InformedTrader"},
-        {"initial_wakeup", 50},
-        {"seed", 777},
-        {"config", {
-            {"instrument", 1},
-            {"min_quantity", 20},
-            {"max_quantity", 80},
-            {"min_interval", 100},
-            {"max_interval", 500},
-            {"min_edge", 3},
-            {"observation_noise", 5.0},
-            {"adverse_fill_threshold", 50},
-            {"stale_order_threshold", 500}
-        }}
-    };
+    json j = {{"client_id", 20},
+              {"type", "InformedTrader"},
+              {"initial_wakeup", 50},
+              {"seed", 777},
+              {"config",
+               {{"instrument", 1},
+                {"min_quantity", 20},
+                {"max_quantity", 80},
+                {"min_interval", 100},
+                {"max_interval", 500},
+                {"min_edge", 3},
+                {"observation_noise", 5.0},
+                {"adverse_fill_threshold", 50},
+                {"stale_order_threshold", 500}}}};
 
     AgentConfig config = j.get<AgentConfig>();
 
@@ -354,13 +304,11 @@ TEST(ConfigLoaderTest, ParseAgentConfigInformedTrader) {
 }
 
 TEST(ConfigLoaderTest, UnknownAgentTypeThrows) {
-    json j = {
-        {"client_id", 1},
-        {"type", "UnknownAgent"},
-        {"initial_wakeup", 10},
-        {"seed", 100},
-        {"config", {}}
-    };
+    json j = {{"client_id", 1},
+              {"type", "UnknownAgent"},
+              {"initial_wakeup", 10},
+              {"seed", 100},
+              {"config", {}}};
 
     EXPECT_THROW(j.get<AgentConfig>(), std::runtime_error);
 }
@@ -370,24 +318,20 @@ TEST(ConfigLoaderTest, UnknownAgentTypeThrows) {
 // =============================================================================
 
 TEST(ConfigLoaderTest, ParseFullSimulationConfig) {
-    json j = {
-        {"simulation", {
-            {"latency", 10},
-            {"duration", 1000},
-            {"output_dir", "./output"},
-            {"pnl_snapshot_interval", 100}
-        }},
-        {"instruments", {1, 2}},
-        {"fair_price", {
-            {"initial_price", 1000000},
-            {"drift", 0.0001},
-            {"volatility", 0.005},
-            {"tick_size", 1000},
-            {"seed", 43}
-        }},
-        {"agents", json::array()},
-        {"initial_orders", json::array()}
-    };
+    json j = {{"simulation",
+               {{"latency", 10},
+                {"duration", 1000},
+                {"output_dir", "./output"},
+                {"pnl_snapshot_interval", 100}}},
+              {"instruments", {1, 2}},
+              {"fair_price",
+               {{"initial_price", 1000000},
+                {"drift", 0.0001},
+                {"volatility", 0.005},
+                {"tick_size", 1000},
+                {"seed", 43}}},
+              {"agents", json::array()},
+              {"initial_orders", json::array()}};
 
     SimulationConfig config = j.get<SimulationConfig>();
 
@@ -404,7 +348,7 @@ TEST(ConfigLoaderTest, ParseFullSimulationConfig) {
 }
 
 TEST(ConfigLoaderTest, SimulationConfigWithMinimalFields) {
-    json j = json::object();  // Empty object, not null
+    json j = json::object(); // Empty object, not null
 
     SimulationConfig config = j.get<SimulationConfig>();
 
@@ -419,26 +363,22 @@ TEST(ConfigLoaderTest, SimulationConfigWithMinimalFields) {
 }
 
 TEST(ConfigLoaderTest, SimulationConfigWithNoiseTraderGroup) {
-    json j = {
-        {"noise_traders", {
-            {"count", 10},
-            {"start_client_id", 1},
-            {"base_seed", 100},
-            {"initial_wakeup_start", 5},
-            {"initial_wakeup_step", 10},
-            {"config", {
-                {"instrument", 1},
-                {"observation_noise", 50.0},
-                {"spread", 36},
-                {"min_quantity", 10},
-                {"max_quantity", 100},
-                {"min_interval", 50},
-                {"max_interval", 200},
-                {"adverse_fill_threshold", 100},
-                {"stale_order_threshold", 1000}
-            }}
-        }}
-    };
+    json j = {{"noise_traders",
+               {{"count", 10},
+                {"start_client_id", 1},
+                {"base_seed", 100},
+                {"initial_wakeup_start", 5},
+                {"initial_wakeup_step", 10},
+                {"config",
+                 {{"instrument", 1},
+                  {"observation_noise", 50.0},
+                  {"spread", 36},
+                  {"min_quantity", 10},
+                  {"max_quantity", 100},
+                  {"min_interval", 50},
+                  {"max_interval", 200},
+                  {"adverse_fill_threshold", 100},
+                  {"stale_order_threshold", 1000}}}}}};
 
     SimulationConfig config = j.get<SimulationConfig>();
 
@@ -452,34 +392,23 @@ TEST(ConfigLoaderTest, SimulationConfigWithNoiseTraderGroup) {
 
 TEST(ConfigLoaderTest, SimulationConfigWithAgentsAndOrders) {
     json j = {
-        {"agents", {
-            {
-                {"client_id", 1},
-                {"type", "NoiseTrader"},
-                {"initial_wakeup", 10},
-                {"seed", 100},
-                {"config", {
-                    {"instrument", 1},
-                    {"observation_noise", 50.0},
-                    {"spread", 36},
-                    {"min_quantity", 10},
-                    {"max_quantity", 100},
-                    {"min_interval", 50},
-                    {"max_interval", 200},
-                    {"adverse_fill_threshold", 100},
-            {"stale_order_threshold", 1000}
-                }}
-            }
-        }},
-        {"initial_orders", {
-            {
-                {"instrument", 1},
-                {"side", "BUY"},
-                {"price", 999900},
-                {"quantity", 500}
-            }
-        }}
-    };
+        {"agents",
+         {{{"client_id", 1},
+           {"type", "NoiseTrader"},
+           {"initial_wakeup", 10},
+           {"seed", 100},
+           {"config",
+            {{"instrument", 1},
+             {"observation_noise", 50.0},
+             {"spread", 36},
+             {"min_quantity", 10},
+             {"max_quantity", 100},
+             {"min_interval", 50},
+             {"max_interval", 200},
+             {"adverse_fill_threshold", 100},
+             {"stale_order_threshold", 1000}}}}}},
+        {"initial_orders",
+         {{{"instrument", 1}, {"side", "BUY"}, {"price", 999900}, {"quantity", 500}}}}};
 
     SimulationConfig config = j.get<SimulationConfig>();
 
@@ -502,24 +431,21 @@ TEST(ConfigLoaderTest, LoadConfigNonexistentFileThrows) {
 // =============================================================================
 
 TEST(ConfigLoaderTest, ParseAgentConfigWithLatency) {
-    json j = {
-        {"client_id", 1},
-        {"type", "NoiseTrader"},
-        {"initial_wakeup", 10},
-        {"latency", 25},
-        {"seed", 100},
-        {"config", {
-            {"instrument", 1},
-            {"observation_noise", 50.0},
-            {"spread", 36},
-            {"min_quantity", 10},
-            {"max_quantity", 100},
-            {"min_interval", 50},
-            {"max_interval", 200},
-            {"adverse_fill_threshold", 100},
-            {"stale_order_threshold", 1000}
-        }}
-    };
+    json j = {{"client_id", 1},
+              {"type", "NoiseTrader"},
+              {"initial_wakeup", 10},
+              {"latency", 25},
+              {"seed", 100},
+              {"config",
+               {{"instrument", 1},
+                {"observation_noise", 50.0},
+                {"spread", 36},
+                {"min_quantity", 10},
+                {"max_quantity", 100},
+                {"min_interval", 50},
+                {"max_interval", 200},
+                {"adverse_fill_threshold", 100},
+                {"stale_order_threshold", 1000}}}};
 
     AgentConfig config = j.get<AgentConfig>();
 
@@ -528,23 +454,20 @@ TEST(ConfigLoaderTest, ParseAgentConfigWithLatency) {
 }
 
 TEST(ConfigLoaderTest, ParseAgentConfigWithoutLatencyDefaultsToZero) {
-    json j = {
-        {"client_id", 1},
-        {"type", "NoiseTrader"},
-        {"initial_wakeup", 10},
-        {"seed", 100},
-        {"config", {
-            {"instrument", 1},
-            {"observation_noise", 50.0},
-            {"spread", 36},
-            {"min_quantity", 10},
-            {"max_quantity", 100},
-            {"min_interval", 50},
-            {"max_interval", 200},
-            {"adverse_fill_threshold", 100},
-            {"stale_order_threshold", 1000}
-        }}
-    };
+    json j = {{"client_id", 1},
+              {"type", "NoiseTrader"},
+              {"initial_wakeup", 10},
+              {"seed", 100},
+              {"config",
+               {{"instrument", 1},
+                {"observation_noise", 50.0},
+                {"spread", 36},
+                {"min_quantity", 10},
+                {"max_quantity", 100},
+                {"min_interval", 50},
+                {"max_interval", 200},
+                {"adverse_fill_threshold", 100},
+                {"stale_order_threshold", 1000}}}};
 
     AgentConfig config = j.get<AgentConfig>();
 
@@ -556,83 +479,71 @@ TEST(ConfigLoaderTest, ParseAgentConfigWithoutLatencyDefaultsToZero) {
 // =============================================================================
 
 TEST(ConfigLoaderGarbageTest, StringWhereNumberExpected) {
-    json j = {
-        {"initial_price", "not_a_number"},
-        {"drift", 0.0001},
-        {"volatility", 0.005},
-        {"tick_size", 1000}
-    };
+    json j = {{"initial_price", "not_a_number"},
+              {"drift", 0.0001},
+              {"volatility", 0.005},
+              {"tick_size", 1000}};
 
     EXPECT_THROW(j.get<FairPriceConfig>(), std::runtime_error);
 }
 
 TEST(ConfigLoaderGarbageTest, NumberWhereStringExpected) {
-    json j = {
-        {"client_id", 1},
-        {"type", 12345},  // Should be a string
-        {"initial_wakeup", 10},
-        {"seed", 100},
-        {"config", {}}
-    };
+    json j = {{"client_id", 1},
+              {"type", 12345}, // Should be a string
+              {"initial_wakeup", 10},
+              {"seed", 100},
+              {"config", {}}};
 
     EXPECT_THROW(j.get<AgentConfig>(), json::type_error);
 }
 
 TEST(ConfigLoaderGarbageTest, ArrayWhereObjectExpected) {
-    json j = json::array({1, 2, 3});  // config expects an object
+    json j = json::array({1, 2, 3}); // config expects an object
 
     EXPECT_THROW(j.get<FairPriceConfig>(), json::type_error);
 }
 
 TEST(ConfigLoaderGarbageTest, ObjectWhereArrayExpected) {
     json j = {
-        {"instruments", {{"not", "an_array"}}}  // Should be array of numbers
+        {"instruments", {{"not", "an_array"}}} // Should be array of numbers
     };
 
     EXPECT_THROW(j.get<SimulationConfig>(), std::runtime_error);
 }
 
 TEST(ConfigLoaderGarbageTest, BooleanWhereNumberExpected) {
-    json j = {
-        {"initial_price", true},
-        {"drift", 0.0001},
-        {"volatility", 0.005},
-        {"tick_size", 1000}
-    };
+    json j = {{"initial_price", true},
+              {"drift", 0.0001},
+              {"volatility", 0.005},
+              {"tick_size", 1000}};
 
     EXPECT_THROW(j.get<FairPriceConfig>(), std::runtime_error);
 }
 
 TEST(ConfigLoaderGarbageTest, NullWhereNumberExpected) {
-    json j = {
-        {"initial_price", nullptr},
-        {"drift", 0.0001},
-        {"volatility", 0.005},
-        {"tick_size", 1000}
-    };
+    json j = {{"initial_price", nullptr},
+              {"drift", 0.0001},
+              {"volatility", 0.005},
+              {"tick_size", 1000}};
 
     EXPECT_THROW(j.get<FairPriceConfig>(), std::runtime_error);
 }
 
 TEST(ConfigLoaderGarbageTest, NullWhereStringExpected) {
-    json j = {
-        {"client_id", 1},
-        {"type", nullptr},
-        {"initial_wakeup", 10},
-        {"seed", 100},
-        {"config", {}}
-    };
+    json j = {{"client_id", 1},
+              {"type", nullptr},
+              {"initial_wakeup", 10},
+              {"seed", 100},
+              {"config", {}}};
 
     EXPECT_THROW(j.get<AgentConfig>(), json::type_error);
 }
 
 TEST(ConfigLoaderGarbageTest, ObjectWhereNumberExpected) {
-    json j = {
-        {"initial_price", {{"nested", "object"}}},
-        {"drift", 0.0001},
-        {"volatility", 0.005},
-        {"tick_size", 1000}
-    };
+    json j = {{"initial_price", {{"nested", "object"}}},
+              {"drift", 0.0001},
+              {"volatility", 0.005},
+              {"tick_size", 1000}};
 
     EXPECT_THROW(j.get<FairPriceConfig>(), std::runtime_error);
 }
@@ -642,23 +553,19 @@ TEST(ConfigLoaderGarbageTest, ObjectWhereNumberExpected) {
 // =============================================================================
 
 TEST(ConfigLoaderGarbageTest, NegativeNumberForUnsigned) {
-    json j = {
-        {"initial_price", -1000},
-        {"drift", 0.0001},
-        {"volatility", 0.005},
-        {"tick_size", 1000}
-    };
+    json j = {{"initial_price", -1000},
+              {"drift", 0.0001},
+              {"volatility", 0.005},
+              {"tick_size", 1000}};
 
     EXPECT_THROW(j.get<FairPriceConfig>(), std::runtime_error);
 }
 
 TEST(ConfigLoaderGarbageTest, FloatingPointWhereIntegerExpected) {
-    json j = {
-        {"initial_price", 1000.5},  // Should be integer
-        {"drift", 0.0001},
-        {"volatility", 0.005},
-        {"tick_size", 1000}
-    };
+    json j = {{"initial_price", 1000.5}, // Should be integer
+              {"drift", 0.0001},
+              {"volatility", 0.005},
+              {"tick_size", 1000}};
 
     // JSON allows this - float gets truncated. This is expected behavior.
     FairPriceConfig config = j.get<FairPriceConfig>();
@@ -667,28 +574,24 @@ TEST(ConfigLoaderGarbageTest, FloatingPointWhereIntegerExpected) {
 
 TEST(ConfigLoaderGarbageTest, ExtremelyLargeNumber) {
     // Use a float clearly exceeding uint64_t max (avoids floating point edge cases)
-    json j = {
-        {"initial_price", 1e25},  // ~10^25, way larger than UINT64_MAX (~1.8e19)
-        {"drift", 0.0001},
-        {"volatility", 0.005},
-        {"tick_size", 1000}
-    };
+    json j = {{"initial_price", 1e25}, // ~10^25, way larger than UINT64_MAX (~1.8e19)
+              {"drift", 0.0001},
+              {"volatility", 0.005},
+              {"tick_size", 1000}};
 
     EXPECT_THROW(j.get<FairPriceConfig>(), std::runtime_error);
 }
 
 TEST(ConfigLoaderGarbageTest, NegativeQuantity) {
-    json j = {
-        {"instrument", 1},
-        {"observation_noise", 50.0},
-        {"spread", 36},
-        {"min_quantity", -10},  // Negative
-        {"max_quantity", 100},
-        {"min_interval", 50},
-        {"max_interval", 200},
-        {"adverse_fill_threshold", 100},
-        {"stale_order_threshold", 1000}
-    };
+    json j = {{"instrument", 1},
+              {"observation_noise", 50.0},
+              {"spread", 36},
+              {"min_quantity", -10}, // Negative
+              {"max_quantity", 100},
+              {"min_interval", 50},
+              {"max_interval", 200},
+              {"adverse_fill_threshold", 100},
+              {"stale_order_threshold", 1000}};
 
     EXPECT_THROW(j.get<NoiseTraderConfig>(), std::runtime_error);
 }
@@ -698,39 +601,33 @@ TEST(ConfigLoaderGarbageTest, NegativeQuantity) {
 // =============================================================================
 
 TEST(ConfigLoaderGarbageTest, EmptyAgentType) {
-    json j = {
-        {"client_id", 1},
-        {"type", ""},  // Empty string
-        {"initial_wakeup", 10},
-        {"seed", 100},
-        {"config", {}}
-    };
+    json j = {{"client_id", 1},
+              {"type", ""}, // Empty string
+              {"initial_wakeup", 10},
+              {"seed", 100},
+              {"config", {}}};
 
     // Empty type is unknown, should throw runtime_error
     EXPECT_THROW(j.get<AgentConfig>(), std::runtime_error);
 }
 
 TEST(ConfigLoaderGarbageTest, InvalidOrderSide) {
-    json j = {
-        {"instrument", 1},
-        {"side", "INVALID"},  // Not BUY or SELL
-        {"price", 1000},
-        {"quantity", 100}
-    };
+    json j = {{"instrument", 1},
+              {"side", "INVALID"}, // Not BUY or SELL
+              {"price", 1000},
+              {"quantity", 100}};
 
     // Current code defaults to SELL for any non-"BUY" string
     InitialOrder order = j.get<InitialOrder>();
-    EXPECT_EQ(order.side, OrderSide::SELL);  // Documents current behavior
+    EXPECT_EQ(order.side, OrderSide::SELL); // Documents current behavior
 }
 
 TEST(ConfigLoaderGarbageTest, InvalidFairPriceModel) {
-    json j = {
-        {"model", "invalid_model"},
-        {"initial_price", 1000000},
-        {"drift", 0.0001},
-        {"volatility", 0.005},
-        {"tick_size", 1000}
-    };
+    json j = {{"model", "invalid_model"},
+              {"initial_price", 1000000},
+              {"drift", 0.0001},
+              {"volatility", 0.005},
+              {"tick_size", 1000}};
 
     // Unknown model defaults to GBM
     FairPriceModelConfig config = parse_fair_price_config(j);
@@ -738,25 +635,21 @@ TEST(ConfigLoaderGarbageTest, InvalidFairPriceModel) {
 }
 
 TEST(ConfigLoaderGarbageTest, WhitespaceAgentType) {
-    json j = {
-        {"client_id", 1},
-        {"type", "   "},  // Whitespace only
-        {"initial_wakeup", 10},
-        {"seed", 100},
-        {"config", {}}
-    };
+    json j = {{"client_id", 1},
+              {"type", "   "}, // Whitespace only
+              {"initial_wakeup", 10},
+              {"seed", 100},
+              {"config", {}}};
 
     EXPECT_THROW(j.get<AgentConfig>(), std::runtime_error);
 }
 
 TEST(ConfigLoaderGarbageTest, MixedCaseAgentType) {
-    json j = {
-        {"client_id", 1},
-        {"type", "noisetrader"},  // Wrong case
-        {"initial_wakeup", 10},
-        {"seed", 100},
-        {"config", {}}
-    };
+    json j = {{"client_id", 1},
+              {"type", "noisetrader"}, // Wrong case
+              {"initial_wakeup", 10},
+              {"seed", 100},
+              {"config", {}}};
 
     EXPECT_THROW(j.get<AgentConfig>(), std::runtime_error);
 }
@@ -767,9 +660,7 @@ TEST(ConfigLoaderGarbageTest, MixedCaseAgentType) {
 
 TEST(ConfigLoaderGarbageTest, NoiseTraderConfigMissingField) {
     json j = {
-        {"instrument", 1},
-        {"observation_noise", 50.0},
-        {"spread", 36}
+        {"instrument", 1}, {"observation_noise", 50.0}, {"spread", 36}
         // Missing all other required fields
     };
 
@@ -778,8 +669,7 @@ TEST(ConfigLoaderGarbageTest, NoiseTraderConfigMissingField) {
 
 TEST(ConfigLoaderGarbageTest, MarketMakerConfigMissingField) {
     json j = {
-        {"instrument", 1},
-        {"observation_noise", 10.0}
+        {"instrument", 1}, {"observation_noise", 10.0}
         // Missing half_spread, quote_size, etc.
     };
 
@@ -808,33 +698,27 @@ TEST(ConfigLoaderGarbageTest, JumpDiffusionConfigMissingJumpParams) {
 }
 
 TEST(ConfigLoaderGarbageTest, AgentConfigMissingClientId) {
-    json j = {
-        // Missing client_id
-        {"type", "NoiseTrader"},
-        {"initial_wakeup", 10},
-        {"seed", 100},
-        {"config", {
-            {"instrument", 1},
-            {"observation_noise", 50.0},
-            {"spread", 36},
-            {"min_quantity", 10},
-            {"max_quantity", 100},
-            {"min_interval", 50},
-            {"max_interval", 200},
-            {"adverse_fill_threshold", 100},
-            {"stale_order_threshold", 1000}
-        }}
-    };
+    json j = {// Missing client_id
+              {"type", "NoiseTrader"},
+              {"initial_wakeup", 10},
+              {"seed", 100},
+              {"config",
+               {{"instrument", 1},
+                {"observation_noise", 50.0},
+                {"spread", 36},
+                {"min_quantity", 10},
+                {"max_quantity", 100},
+                {"min_interval", 50},
+                {"max_interval", 200},
+                {"adverse_fill_threshold", 100},
+                {"stale_order_threshold", 1000}}}};
 
     EXPECT_THROW(j.get<AgentConfig>(), json::out_of_range);
 }
 
 TEST(ConfigLoaderGarbageTest, AgentConfigMissingConfig) {
     json j = {
-        {"client_id", 1},
-        {"type", "NoiseTrader"},
-        {"initial_wakeup", 10},
-        {"seed", 100}
+        {"client_id", 1}, {"type", "NoiseTrader"}, {"initial_wakeup", 10}, {"seed", 100}
         // Missing "config" field
     };
 
@@ -842,12 +726,10 @@ TEST(ConfigLoaderGarbageTest, AgentConfigMissingConfig) {
 }
 
 TEST(ConfigLoaderGarbageTest, InitialOrderMissingPrice) {
-    json j = {
-        {"instrument", 1},
-        {"side", "BUY"},
-        // Missing price
-        {"quantity", 100}
-    };
+    json j = {{"instrument", 1},
+              {"side", "BUY"},
+              // Missing price
+              {"quantity", 100}};
 
     EXPECT_THROW(j.get<InitialOrder>(), json::out_of_range);
 }
@@ -870,69 +752,58 @@ TEST(ConfigLoaderGarbageTest, NoiseTraderGroupMissingConfig) {
 // =============================================================================
 
 TEST(ConfigLoaderGarbageTest, NestedGarbageInAgentConfig) {
-    json j = {
-        {"client_id", 1},
-        {"type", "NoiseTrader"},
-        {"initial_wakeup", 10},
-        {"seed", 100},
-        {"config", {
-            {"instrument", "not_a_number"},  // Wrong type in nested config
-            {"observation_noise", 50.0},
-            {"spread", 36},
-            {"min_quantity", 10},
-            {"max_quantity", 100},
-            {"min_interval", 50},
-            {"max_interval", 200},
-            {"adverse_fill_threshold", 100},
-            {"stale_order_threshold", 1000}
-        }}
-    };
+    json j = {{"client_id", 1},
+              {"type", "NoiseTrader"},
+              {"initial_wakeup", 10},
+              {"seed", 100},
+              {"config",
+               {{"instrument", "not_a_number"}, // Wrong type in nested config
+                {"observation_noise", 50.0},
+                {"spread", 36},
+                {"min_quantity", 10},
+                {"max_quantity", 100},
+                {"min_interval", 50},
+                {"max_interval", 200},
+                {"adverse_fill_threshold", 100},
+                {"stale_order_threshold", 1000}}}};
 
     EXPECT_THROW(j.get<AgentConfig>(), std::runtime_error);
 }
 
 TEST(ConfigLoaderGarbageTest, NestedGarbageInNoiseTraderGroup) {
-    json j = {
-        {"count", 10},
-        {"start_client_id", 1},
-        {"base_seed", 100},
-        {"initial_wakeup_start", 5},
-        {"initial_wakeup_step", 10},
-        {"config", {
-            {"instrument", 1},
-            {"observation_noise", "garbage"},  // Wrong type
-            {"spread", 36},
-            {"min_quantity", 10},
-            {"max_quantity", 100},
-            {"min_interval", 50},
-            {"max_interval", 200},
-            {"adverse_fill_threshold", 100},
-            {"stale_order_threshold", 1000}
-        }}
-    };
+    json j = {{"count", 10},
+              {"start_client_id", 1},
+              {"base_seed", 100},
+              {"initial_wakeup_start", 5},
+              {"initial_wakeup_step", 10},
+              {"config",
+               {{"instrument", 1},
+                {"observation_noise", "garbage"}, // Wrong type
+                {"spread", 36},
+                {"min_quantity", 10},
+                {"max_quantity", 100},
+                {"min_interval", 50},
+                {"max_interval", 200},
+                {"adverse_fill_threshold", 100},
+                {"stale_order_threshold", 1000}}}};
 
     EXPECT_THROW(j.get<NoiseTraderGroupConfig>(), json::type_error);
 }
 
 TEST(ConfigLoaderGarbageTest, SimulationConfigWithGarbageAgents) {
-    json j = {
-        {"agents", {
-            {
-                {"client_id", "not_a_number"},  // Wrong type
-                {"type", "NoiseTrader"},
-                {"initial_wakeup", 10},
-                {"seed", 100},
-                {"config", {}}
-            }
-        }}
-    };
+    json j = {{"agents",
+               {{{"client_id", "not_a_number"}, // Wrong type
+                 {"type", "NoiseTrader"},
+                 {"initial_wakeup", 10},
+                 {"seed", 100},
+                 {"config", {}}}}}};
 
     EXPECT_THROW(j.get<SimulationConfig>(), std::runtime_error);
 }
 
 TEST(ConfigLoaderGarbageTest, SimulationConfigWithGarbageInstruments) {
     json j = {
-        {"instruments", {"a", "b", "c"}}  // Strings instead of numbers
+        {"instruments", {"a", "b", "c"}} // Strings instead of numbers
     };
 
     EXPECT_THROW(j.get<SimulationConfig>(), std::runtime_error);
@@ -943,7 +814,7 @@ TEST(ConfigLoaderGarbageTest, SimulationConfigWithGarbageInstruments) {
 // =============================================================================
 
 TEST(ConfigLoaderGarbageTest, PrimitiveInsteadOfObject) {
-    json j = 12345;  // Just a number, not an object
+    json j = 12345; // Just a number, not an object
 
     EXPECT_THROW(j.get<SimulationConfig>(), std::runtime_error);
 }
@@ -971,24 +842,21 @@ TEST(ConfigLoaderGarbageTest, ArrayInsteadOfSimulationConfig) {
 // =============================================================================
 
 TEST(ConfigLoaderGarbageTest, ZeroCount) {
-    json j = {
-        {"count", 0},  // Zero traders
-        {"start_client_id", 1},
-        {"base_seed", 100},
-        {"initial_wakeup_start", 5},
-        {"initial_wakeup_step", 10},
-        {"config", {
-            {"instrument", 1},
-            {"observation_noise", 50.0},
-            {"spread", 36},
-            {"min_quantity", 10},
-            {"max_quantity", 100},
-            {"min_interval", 50},
-            {"max_interval", 200},
-            {"adverse_fill_threshold", 100},
-            {"stale_order_threshold", 1000}
-        }}
-    };
+    json j = {{"count", 0}, // Zero traders
+              {"start_client_id", 1},
+              {"base_seed", 100},
+              {"initial_wakeup_start", 5},
+              {"initial_wakeup_step", 10},
+              {"config",
+               {{"instrument", 1},
+                {"observation_noise", 50.0},
+                {"spread", 36},
+                {"min_quantity", 10},
+                {"max_quantity", 100},
+                {"min_interval", 50},
+                {"max_interval", 200},
+                {"adverse_fill_threshold", 100},
+                {"stale_order_threshold", 1000}}}};
 
     // Zero count should parse (semantic validation is separate)
     NoiseTraderGroupConfig config = j.get<NoiseTraderGroupConfig>();
@@ -996,17 +864,15 @@ TEST(ConfigLoaderGarbageTest, ZeroCount) {
 }
 
 TEST(ConfigLoaderGarbageTest, ZeroQuantityRange) {
-    json j = {
-        {"instrument", 1},
-        {"observation_noise", 50.0},
-        {"spread", 36},
-        {"min_quantity", 100},
-        {"max_quantity", 10},  // min > max (invalid semantically)
-        {"min_interval", 50},
-        {"max_interval", 200},
-        {"adverse_fill_threshold", 100},
-        {"stale_order_threshold", 1000}
-    };
+    json j = {{"instrument", 1},
+              {"observation_noise", 50.0},
+              {"spread", 36},
+              {"min_quantity", 100},
+              {"max_quantity", 10}, // min > max (invalid semantically)
+              {"min_interval", 50},
+              {"max_interval", 200},
+              {"adverse_fill_threshold", 100},
+              {"stale_order_threshold", 1000}};
 
     // Should parse successfully (semantic validation is separate)
     NoiseTraderConfig config = j.get<NoiseTraderConfig>();
@@ -1016,38 +882,32 @@ TEST(ConfigLoaderGarbageTest, ZeroQuantityRange) {
 
 TEST(ConfigLoaderGarbageTest, VeryLongString) {
     std::string long_string(10000, 'x');
-    json j = {
-        {"client_id", 1},
-        {"type", long_string},
-        {"initial_wakeup", 10},
-        {"seed", 100},
-        {"config", {}}
-    };
+    json j = {{"client_id", 1},
+              {"type", long_string},
+              {"initial_wakeup", 10},
+              {"seed", 100},
+              {"config", {}}};
 
     // Should throw runtime_error for unknown agent type
     EXPECT_THROW(j.get<AgentConfig>(), std::runtime_error);
 }
 
 TEST(ConfigLoaderGarbageTest, SpecialCharactersInType) {
-    json j = {
-        {"client_id", 1},
-        {"type", "Noise\nTrader\0Test"},  // Embedded newline and null
-        {"initial_wakeup", 10},
-        {"seed", 100},
-        {"config", {}}
-    };
+    json j = {{"client_id", 1},
+              {"type", "Noise\nTrader\0Test"}, // Embedded newline and null
+              {"initial_wakeup", 10},
+              {"seed", 100},
+              {"config", {}}};
 
     EXPECT_THROW(j.get<AgentConfig>(), std::runtime_error);
 }
 
 TEST(ConfigLoaderGarbageTest, UnicodeInType) {
-    json j = {
-        {"client_id", 1},
-        {"type", "NoiseTrader\xF0\x9F\x92\xB0"},  // With emoji
-        {"initial_wakeup", 10},
-        {"seed", 100},
-        {"config", {}}
-    };
+    json j = {{"client_id", 1},
+              {"type", "NoiseTrader\xF0\x9F\x92\xB0"}, // With emoji
+              {"initial_wakeup", 10},
+              {"seed", 100},
+              {"config", {}}};
 
     EXPECT_THROW(j.get<AgentConfig>(), std::runtime_error);
 }
@@ -1064,24 +924,22 @@ TEST(ConfigLoaderGarbageTest, DuplicateKeys) {
 
     json j = json::parse(json_str);
     FairPriceConfig config = j.get<FairPriceConfig>();
-    EXPECT_EQ(config.initial_price, Price{2000});  // Last value wins
+    EXPECT_EQ(config.initial_price, Price{2000}); // Last value wins
 }
 
 TEST(ConfigLoaderGarbageTest, EmptyAgentsArray) {
-    json j = {
-        {"agents", json::array()}
-    };
+    json j = {{"agents", json::array()}};
 
     SimulationConfig config = j.get<SimulationConfig>();
     EXPECT_TRUE(config.agents.empty());
 }
 
 TEST(ConfigLoaderGarbageTest, DeepNestedGarbage) {
-    json j = {
-        {"simulation", {
-            {"latency", {{"deeply", {{"nested", "garbage"}}}}}  // Object where number expected
-        }}
-    };
+    json j = {{"simulation",
+               {
+                   {"latency",
+                    {{"deeply", {{"nested", "garbage"}}}}} // Object where number expected
+               }}};
 
     EXPECT_THROW(j.get<SimulationConfig>(), std::runtime_error);
 }
@@ -1108,16 +966,9 @@ TEST(ConfigLoaderGarbageTest, JumpDiffusionModelWithGBMParams) {
 TEST(ConfigLoaderGarbageTest, GBMModelWithJumpDiffusionParams) {
     // Specifying model="gbm" but providing jump_diffusion params
     // should throw because jump params are extraneous for GBM
-    json j = {
-        {"model", "gbm"},
-        {"initial_price", 1000000},
-        {"drift", 0.0001},
-        {"volatility", 0.005},
-        {"tick_size", 1000},
-        {"jump_intensity", 0.1},
-        {"jump_mean", 0.0},
-        {"jump_std", 0.05}
-    };
+    json j = {{"model", "gbm"},      {"initial_price", 1000000}, {"drift", 0.0001},
+              {"volatility", 0.005}, {"tick_size", 1000},        {"jump_intensity", 0.1},
+              {"jump_mean", 0.0},    {"jump_std", 0.05}};
 
     EXPECT_THROW(parse_fair_price_config(j), std::runtime_error);
 }
@@ -1125,15 +976,9 @@ TEST(ConfigLoaderGarbageTest, GBMModelWithJumpDiffusionParams) {
 TEST(ConfigLoaderGarbageTest, DefaultModelWithJumpDiffusionParams) {
     // No model specified (defaults to GBM) but providing jump_diffusion params
     // should throw because jump params are extraneous for GBM
-    json j = {
-        {"initial_price", 1000000},
-        {"drift", 0.0001},
-        {"volatility", 0.005},
-        {"tick_size", 1000},
-        {"jump_intensity", 0.1},
-        {"jump_mean", 0.0},
-        {"jump_std", 0.05}
-    };
+    json j = {{"initial_price", 1000000}, {"drift", 0.0001},       {"volatility", 0.005},
+              {"tick_size", 1000},        {"jump_intensity", 0.1}, {"jump_mean", 0.0},
+              {"jump_std", 0.05}};
 
     EXPECT_THROW(parse_fair_price_config(j), std::runtime_error);
 }
@@ -1143,101 +988,82 @@ TEST(ConfigLoaderGarbageTest, DefaultModelWithJumpDiffusionParams) {
 // =============================================================================
 
 TEST(ConfigLoaderTest, NoiseTraderConfigWithLatencyJitter) {
-    json j = {
-        {"instrument", 1},
-        {"observation_noise", 50.0},
-        {"spread", 36},
-        {"min_quantity", 10},
-        {"max_quantity", 100},
-        {"min_interval", 50},
-        {"max_interval", 200},
-        {"adverse_fill_threshold", 100},
-        {"stale_order_threshold", 1000},
-        {"latency_jitter", 0.3}
-    };
+    json j = {{"instrument", 1},
+              {"observation_noise", 50.0},
+              {"spread", 36},
+              {"min_quantity", 10},
+              {"max_quantity", 100},
+              {"min_interval", 50},
+              {"max_interval", 200},
+              {"adverse_fill_threshold", 100},
+              {"stale_order_threshold", 1000},
+              {"latency_jitter", 0.3}};
 
     NoiseTraderConfig config = j.get<NoiseTraderConfig>();
     EXPECT_DOUBLE_EQ(config.latency_jitter, 0.3);
 }
 
 TEST(ConfigLoaderTest, NoiseTraderConfigWithoutLatencyJitterDefaultsToZero) {
-    json j = {
-        {"instrument", 1},
-        {"observation_noise", 50.0},
-        {"spread", 36},
-        {"min_quantity", 10},
-        {"max_quantity", 100},
-        {"min_interval", 50},
-        {"max_interval", 200},
-        {"adverse_fill_threshold", 100},
-        {"stale_order_threshold", 1000}
-    };
+    json j = {{"instrument", 1},
+              {"observation_noise", 50.0},
+              {"spread", 36},
+              {"min_quantity", 10},
+              {"max_quantity", 100},
+              {"min_interval", 50},
+              {"max_interval", 200},
+              {"adverse_fill_threshold", 100},
+              {"stale_order_threshold", 1000}};
 
     NoiseTraderConfig config = j.get<NoiseTraderConfig>();
     EXPECT_DOUBLE_EQ(config.latency_jitter, 0.0);
 }
 
 TEST(ConfigLoaderTest, MarketMakerConfigWithLatencyJitter) {
-    json j = {
-        {"instrument", 1},
-        {"observation_noise", 10.0},
-        {"half_spread", 5},
-        {"quote_size", 50},
-        {"update_interval", 100},
-        {"inventory_skew_factor", 0.5},
-        {"max_position", 500},
-        {"latency_jitter", 0.2}
-    };
+    json j = {{"instrument", 1},        {"observation_noise", 10.0},
+              {"half_spread", 5},       {"quote_size", 50},
+              {"update_interval", 100}, {"inventory_skew_factor", 0.5},
+              {"max_position", 500},    {"latency_jitter", 0.2}};
 
     MarketMakerConfig config = j.get<MarketMakerConfig>();
     EXPECT_DOUBLE_EQ(config.latency_jitter, 0.2);
 }
 
 TEST(ConfigLoaderTest, MarketMakerConfigWithoutLatencyJitterDefaultsToZero) {
-    json j = {
-        {"instrument", 1},
-        {"observation_noise", 10.0},
-        {"half_spread", 5},
-        {"quote_size", 50},
-        {"update_interval", 100},
-        {"inventory_skew_factor", 0.5},
-        {"max_position", 500}
-    };
+    json j = {{"instrument", 1},        {"observation_noise", 10.0},
+              {"half_spread", 5},       {"quote_size", 50},
+              {"update_interval", 100}, {"inventory_skew_factor", 0.5},
+              {"max_position", 500}};
 
     MarketMakerConfig config = j.get<MarketMakerConfig>();
     EXPECT_DOUBLE_EQ(config.latency_jitter, 0.0);
 }
 
 TEST(ConfigLoaderTest, InformedTraderConfigWithLatencyJitter) {
-    json j = {
-        {"instrument", 1},
-        {"min_quantity", 20},
-        {"max_quantity", 80},
-        {"min_interval", 100},
-        {"max_interval", 500},
-        {"min_edge", 3},
-        {"observation_noise", 5.0},
-        {"adverse_fill_threshold", 50},
-        {"stale_order_threshold", 500},
-        {"latency_jitter", 0.1}
-    };
+    json j = {{"instrument", 1},
+              {"min_quantity", 20},
+              {"max_quantity", 80},
+              {"min_interval", 100},
+              {"max_interval", 500},
+              {"min_edge", 3},
+              {"observation_noise", 5.0},
+              {"adverse_fill_threshold", 50},
+              {"stale_order_threshold", 500},
+              {"latency_jitter", 0.1}};
 
     InformedTraderConfig config = j.get<InformedTraderConfig>();
     EXPECT_DOUBLE_EQ(config.latency_jitter, 0.1);
 }
 
 TEST(ConfigLoaderTest, InformedTraderConfigWithoutLatencyJitterDefaultsToZero) {
-    json j = {
-        {"instrument", 1},
-        {"min_quantity", 20},
-        {"max_quantity", 80},
-        {"min_interval", 100},
-        {"max_interval", 500},
-        {"min_edge", 3},
-        {"observation_noise", 5.0},
-        {"adverse_fill_threshold", 50},
-        {"stale_order_threshold", 500}
-    };
+    json j = {{"instrument", 1},
+              {"min_quantity", 20},
+              {"max_quantity", 80},
+              {"min_interval", 100},
+              {"max_interval", 500},
+              {"min_edge", 3},
+              {"observation_noise", 5.0},
+              {"adverse_fill_threshold", 50},
+              {"stale_order_threshold", 500}};
 
     InformedTraderConfig config = j.get<InformedTraderConfig>();
     EXPECT_DOUBLE_EQ(config.latency_jitter, 0.0);

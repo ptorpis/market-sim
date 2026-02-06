@@ -117,7 +117,8 @@ protected:
     Base data_m;
 };
 
-// Concept to identify StrongType derivatives (checks for tag_type which is unique to StrongType)
+// Concept to identify StrongType derivatives (checks for tag_type which is unique to
+// StrongType)
 template <typename T>
 concept IsStrongType = requires {
     typename T::value_type;
