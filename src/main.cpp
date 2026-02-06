@@ -30,6 +30,7 @@ void run_from_config(const SimulationConfig& config) {
                              i * group.initial_wakeup_step.value()};
 
             sim.add_agent<NoiseTrader>(id, group.config, seed);
+            sim.set_agent_latency_jitter(id, group.config.latency_jitter, seed);
             if (sim.data_collector()) {
                 sim.data_collector()->metadata().add_agent(
                     id, "NoiseTrader", to_json(group.config), seed, Timestamp{0});
@@ -39,8 +40,10 @@ void run_from_config(const SimulationConfig& config) {
     }
 
     for (const auto& agent : config.agents) {
+        double jitter = 0.0;
         if (agent.type == "NoiseTrader") {
             sim.add_agent<NoiseTrader>(agent.id, agent.noise_trader, agent.seed);
+            jitter = agent.noise_trader.latency_jitter;
             if (sim.data_collector()) {
                 sim.data_collector()->metadata().add_agent(agent.id, "NoiseTrader",
                                                            to_json(agent.noise_trader),
@@ -48,6 +51,7 @@ void run_from_config(const SimulationConfig& config) {
             }
         } else if (agent.type == "MarketMaker") {
             sim.add_agent<MarketMaker>(agent.id, agent.market_maker, agent.seed);
+            jitter = agent.market_maker.latency_jitter;
             if (sim.data_collector()) {
                 sim.data_collector()->metadata().add_agent(agent.id, "MarketMaker",
                                                            to_json(agent.market_maker),
@@ -55,6 +59,7 @@ void run_from_config(const SimulationConfig& config) {
             }
         } else if (agent.type == "InformedTrader") {
             sim.add_agent<InformedTrader>(agent.id, agent.informed_trader, agent.seed);
+            jitter = agent.informed_trader.latency_jitter;
             if (sim.data_collector()) {
                 sim.data_collector()->metadata().add_agent(agent.id, "InformedTrader",
                                                            to_json(agent.informed_trader),
@@ -62,6 +67,7 @@ void run_from_config(const SimulationConfig& config) {
             }
         }
         sim.set_agent_latency(agent.id, agent.latency);
+        sim.set_agent_latency_jitter(agent.id, jitter, agent.seed);
         sim.scheduler().schedule(
             AgentWakeup{.timestamp = agent.initial_wakeup, .agent_id = agent.id});
     }

@@ -616,6 +616,7 @@ TEST_F(PersistenceTest, NoiseTraderConfigToJson) {
     EXPECT_EQ(j["max_interval"], 200);
     EXPECT_EQ(j["adverse_fill_threshold"], 100);
     EXPECT_EQ(j["stale_order_threshold"], 1000);
+    EXPECT_DOUBLE_EQ(j["latency_jitter"], 0.0);
 }
 
 TEST_F(PersistenceTest, MarketMakerConfigToJson) {
@@ -635,6 +636,7 @@ TEST_F(PersistenceTest, MarketMakerConfigToJson) {
     EXPECT_EQ(j["update_interval"], 100);
     EXPECT_DOUBLE_EQ(j["inventory_skew_factor"], 0.5);
     EXPECT_EQ(j["max_position"], 500);
+    EXPECT_DOUBLE_EQ(j["latency_jitter"], 0.0);
 }
 
 TEST_F(PersistenceTest, InformedTraderConfigToJson) {
@@ -658,6 +660,7 @@ TEST_F(PersistenceTest, InformedTraderConfigToJson) {
     EXPECT_DOUBLE_EQ(j["observation_noise"], 5.0);
     EXPECT_EQ(j["adverse_fill_threshold"], 50);
     EXPECT_EQ(j["stale_order_threshold"], 500);
+    EXPECT_DOUBLE_EQ(j["latency_jitter"], 0.0);
 }
 
 TEST_F(PersistenceTest, FairPriceConfigToJson) {

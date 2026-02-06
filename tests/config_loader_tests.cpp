@@ -1137,3 +1137,108 @@ TEST(ConfigLoaderGarbageTest, DefaultModelWithJumpDiffusionParams) {
 
     EXPECT_THROW(parse_fair_price_config(j), std::runtime_error);
 }
+
+// =============================================================================
+// Latency Jitter
+// =============================================================================
+
+TEST(ConfigLoaderTest, NoiseTraderConfigWithLatencyJitter) {
+    json j = {
+        {"instrument", 1},
+        {"observation_noise", 50.0},
+        {"spread", 36},
+        {"min_quantity", 10},
+        {"max_quantity", 100},
+        {"min_interval", 50},
+        {"max_interval", 200},
+        {"adverse_fill_threshold", 100},
+        {"stale_order_threshold", 1000},
+        {"latency_jitter", 0.3}
+    };
+
+    NoiseTraderConfig config = j.get<NoiseTraderConfig>();
+    EXPECT_DOUBLE_EQ(config.latency_jitter, 0.3);
+}
+
+TEST(ConfigLoaderTest, NoiseTraderConfigWithoutLatencyJitterDefaultsToZero) {
+    json j = {
+        {"instrument", 1},
+        {"observation_noise", 50.0},
+        {"spread", 36},
+        {"min_quantity", 10},
+        {"max_quantity", 100},
+        {"min_interval", 50},
+        {"max_interval", 200},
+        {"adverse_fill_threshold", 100},
+        {"stale_order_threshold", 1000}
+    };
+
+    NoiseTraderConfig config = j.get<NoiseTraderConfig>();
+    EXPECT_DOUBLE_EQ(config.latency_jitter, 0.0);
+}
+
+TEST(ConfigLoaderTest, MarketMakerConfigWithLatencyJitter) {
+    json j = {
+        {"instrument", 1},
+        {"observation_noise", 10.0},
+        {"half_spread", 5},
+        {"quote_size", 50},
+        {"update_interval", 100},
+        {"inventory_skew_factor", 0.5},
+        {"max_position", 500},
+        {"latency_jitter", 0.2}
+    };
+
+    MarketMakerConfig config = j.get<MarketMakerConfig>();
+    EXPECT_DOUBLE_EQ(config.latency_jitter, 0.2);
+}
+
+TEST(ConfigLoaderTest, MarketMakerConfigWithoutLatencyJitterDefaultsToZero) {
+    json j = {
+        {"instrument", 1},
+        {"observation_noise", 10.0},
+        {"half_spread", 5},
+        {"quote_size", 50},
+        {"update_interval", 100},
+        {"inventory_skew_factor", 0.5},
+        {"max_position", 500}
+    };
+
+    MarketMakerConfig config = j.get<MarketMakerConfig>();
+    EXPECT_DOUBLE_EQ(config.latency_jitter, 0.0);
+}
+
+TEST(ConfigLoaderTest, InformedTraderConfigWithLatencyJitter) {
+    json j = {
+        {"instrument", 1},
+        {"min_quantity", 20},
+        {"max_quantity", 80},
+        {"min_interval", 100},
+        {"max_interval", 500},
+        {"min_edge", 3},
+        {"observation_noise", 5.0},
+        {"adverse_fill_threshold", 50},
+        {"stale_order_threshold", 500},
+        {"latency_jitter", 0.1}
+    };
+
+    InformedTraderConfig config = j.get<InformedTraderConfig>();
+    EXPECT_DOUBLE_EQ(config.latency_jitter, 0.1);
+}
+
+TEST(ConfigLoaderTest, InformedTraderConfigWithoutLatencyJitterDefaultsToZero) {
+    json j = {
+        {"instrument", 1},
+        {"min_quantity", 20},
+        {"max_quantity", 80},
+        {"min_interval", 100},
+        {"max_interval", 500},
+        {"min_edge", 3},
+        {"observation_noise", 5.0},
+        {"adverse_fill_threshold", 50},
+        {"stale_order_threshold", 500}
+    };
+
+    InformedTraderConfig config = j.get<InformedTraderConfig>();
+    EXPECT_DOUBLE_EQ(config.latency_jitter, 0.0);
+}

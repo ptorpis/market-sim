@@ -100,6 +100,9 @@ inline void from_json(const nlohmann::json& j, NoiseTraderConfig& c) {
     c.max_interval = Timestamp{get_uint64(j, "max_interval")};
     c.adverse_fill_threshold = Price{get_uint64(j, "adverse_fill_threshold")};
     c.stale_order_threshold = Price{get_uint64(j, "stale_order_threshold")};
+    if (j.contains("latency_jitter")) {
+        c.latency_jitter = j.at("latency_jitter").get<double>();
+    }
 }
 
 inline void from_json(const nlohmann::json& j, NoiseTraderGroupConfig& c) {
@@ -121,6 +124,9 @@ inline void from_json(const nlohmann::json& j, MarketMakerConfig& c) {
     c.update_interval = Timestamp{get_uint64(j, "update_interval")};
     c.inventory_skew_factor = j.at("inventory_skew_factor").get<double>();
     c.max_position = Quantity{get_uint64(j, "max_position")};
+    if (j.contains("latency_jitter")) {
+        c.latency_jitter = j.at("latency_jitter").get<double>();
+    }
 }
 
 inline void from_json(const nlohmann::json& j, InformedTraderConfig& c) {
@@ -134,6 +140,9 @@ inline void from_json(const nlohmann::json& j, InformedTraderConfig& c) {
     c.observation_noise = j.at("observation_noise").get<double>();
     c.adverse_fill_threshold = Price{get_uint64(j, "adverse_fill_threshold")};
     c.stale_order_threshold = Price{get_uint64(j, "stale_order_threshold")};
+    if (j.contains("latency_jitter")) {
+        c.latency_jitter = j.at("latency_jitter").get<double>();
+    }
 }
 
 inline void from_json(const nlohmann::json& j, AgentConfig& c) {

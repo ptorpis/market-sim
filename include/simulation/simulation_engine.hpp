@@ -6,10 +6,12 @@
 #include "simulation/fair_price.hpp"
 #include "simulation/scheduler.hpp"
 
+#include <cmath>
 #include <filesystem>
 #include <memory>
 #include <optional>
 #include <print>
+#include <random>
 #include <type_traits>
 #include <unordered_map>
 
@@ -100,6 +102,13 @@ public:
 
     void set_agent_latency(ClientID id, Timestamp latency) {
         agent_latencies_.emplace(id, latency);
+    }
+
+    void set_agent_latency_jitter(ClientID id, double jitter, std::uint64_t seed) {
+        if (jitter > 0.0) {
+            agent_jitters_.emplace(id, jitter);
+            agent_latency_rngs_.emplace(id, std::mt19937_64{seed});
+        }
     }
 
     void run_until(Timestamp end_time) {
@@ -220,15 +229,26 @@ private:
     ClientID current_agent_{0};
     Timestamp latency_;
     std::unordered_map<ClientID, Timestamp, strong_hash<ClientID>> agent_latencies_;
+    std::unordered_map<ClientID, double, strong_hash<ClientID>> agent_jitters_;
+    std::unordered_map<ClientID, std::mt19937_64, strong_hash<ClientID>> agent_latency_rngs_;
     std::unique_ptr<DataCollector> data_collector_;
     std::uint64_t fair_price_seed_{0};
 
-    [[nodiscard]] Timestamp get_agent_latency_(ClientID id) const {
+    [[nodiscard]] Timestamp get_agent_latency_(ClientID id) {
         auto it = agent_latencies_.find(id);
-        if (it != agent_latencies_.end() && it->second > Timestamp{0}) {
-            return it->second;
+        Timestamp base =
+            (it != agent_latencies_.end() && it->second > Timestamp{0}) ? it->second : latency_;
+
+        auto jit = agent_jitters_.find(id);
+        if (jit == agent_jitters_.end() || base == Timestamp{0}) {
+            return base;
         }
-        return latency_;
+
+        double mu = std::log(static_cast<double>(base.value()));
+        std::lognormal_distribution<double> dist(mu, jit->second);
+        double sampled = dist(agent_latency_rngs_.at(id));
+        auto result = static_cast<std::uint64_t>(std::max(1.0, std::round(sampled)));
+        return Timestamp{result};
     }
 
     void dispatch_event(const Event& event) {

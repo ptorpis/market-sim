@@ -70,7 +70,10 @@ Configuration is via JSON file. See `config_template.json` for a complete exampl
     "base_seed": 100,
     "initial_wakeup_start": 10,
     "initial_wakeup_step": 10,
-    "config": { ... }
+    "config": {
+      "latency_jitter": 0.3,
+      ...
+    }
   },
   "agents": [
     {
@@ -78,7 +81,10 @@ Configuration is via JSON file. See `config_template.json` for a complete exampl
       "type": "MarketMaker",
       "initial_wakeup": 5,
       "seed": 999,
-      "config": { ... }
+      "config": {
+        "latency_jitter": 0.2,
+        ...
+      }
     }
   ]
 }
@@ -106,6 +112,32 @@ This allows scaling to hundreds of noise traders without verbose config files. I
 | `NoiseTrader` | Random liquidity provider, places random buy/sell orders |
 | `MarketMaker` | Quotes both sides around fair price, adjusts for inventory |
 | `InformedTrader` | Trades on information signals when edge exceeds threshold |
+
+#### Latency Jitter
+
+Each agent type config supports a `latency_jitter` parameter that adds realistic variability to order-to-exchange latency using a log-normal distribution.
+
+When `latency_jitter` is set to a value greater than 0, each action's latency is sampled from:
+
+$$\text{latency} \sim \text{LogNormal}(\ln(\text{base\_latency}),\; \sigma)$$
+
+Where `base_latency` is the agent's configured latency (or the global default) and $\sigma$ is the `latency_jitter` value. The median of the distribution equals the base latency, so the jitter adds noise around it with occasional high-latency spikes. Each agent's jitter RNG is seeded from its own seed for reproducibility.
+
+| `latency_jitter` | Effect |
+|-------------------|--------|
+| `0` (default) | No jitter, constant latency |
+| `0.1` | Mild jitter (~10% variation) |
+| `0.3` | Moderate jitter |
+| `0.5` | High jitter with occasional large spikes |
+
+The parameter is set inside each agent type's `config` block:
+
+```json
+"config": {
+  "latency_jitter": 0.3,
+  ...
+}
+```
 
 #### Fair Price Models
 

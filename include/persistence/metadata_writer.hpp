@@ -19,7 +19,8 @@ inline nlohmann::json to_json(const NoiseTraderConfig& c) {
             {"min_interval", c.min_interval.value()},
             {"max_interval", c.max_interval.value()},
             {"adverse_fill_threshold", c.adverse_fill_threshold.value()},
-            {"stale_order_threshold", c.stale_order_threshold.value()}};
+            {"stale_order_threshold", c.stale_order_threshold.value()},
+            {"latency_jitter", c.latency_jitter}};
 }
 
 inline nlohmann::json to_json(const MarketMakerConfig& c) {
@@ -29,7 +30,8 @@ inline nlohmann::json to_json(const MarketMakerConfig& c) {
             {"quote_size", c.quote_size.value()},
             {"update_interval", c.update_interval.value()},
             {"inventory_skew_factor", c.inventory_skew_factor},
-            {"max_position", c.max_position.value()}};
+            {"max_position", c.max_position.value()},
+            {"latency_jitter", c.latency_jitter}};
 }
 
 inline nlohmann::json to_json(const InformedTraderConfig& c) {
@@ -41,7 +43,8 @@ inline nlohmann::json to_json(const InformedTraderConfig& c) {
             {"min_edge", c.min_edge.value()},
             {"observation_noise", c.observation_noise},
             {"adverse_fill_threshold", c.adverse_fill_threshold.value()},
-            {"stale_order_threshold", c.stale_order_threshold.value()}};
+            {"stale_order_threshold", c.stale_order_threshold.value()},
+            {"latency_jitter", c.latency_jitter}};
 }
 
 inline nlohmann::json to_json(const FairPriceConfig& c) {

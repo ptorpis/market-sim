@@ -60,6 +60,10 @@ using FairPriceModelConfig = std::variant<FairPriceConfig, JumpDiffusionConfig>;
  *   (BUY too high above fair, SELL too low below fair)
  * - stale_order_threshold: Cancel orders too far from fair to ever execute
  *   (BUY too far below fair, SELL too far above fair)
+ *
+ * Latency jitter: sigma parameter for log-normal latency jitter; 0 = no jitter.
+ * When > 0, each action's latency is sampled from LogNormal(ln(base_latency), sigma)
+ * so the median equals the base latency.
  */
 struct NoiseTraderConfig {
     InstrumentID instrument;
@@ -71,6 +75,7 @@ struct NoiseTraderConfig {
     Timestamp max_interval;
     Price adverse_fill_threshold;
     Price stale_order_threshold;
+    double latency_jitter{0.0};
 };
 
 /**
@@ -91,6 +96,10 @@ struct NoiseTraderGroupConfig {
  * Configuration for market makers that quote on both sides of the book.
  * Market makers observe the fair price with noise and adjust their quotes based
  * on inventory position using a skew factor, respecting maximum position limits.
+ *
+ * Latency jitter: sigma parameter for log-normal latency jitter; 0 = no jitter.
+ * When > 0, each action's latency is sampled from LogNormal(ln(base_latency), sigma)
+ * so the median equals the base latency.
  */
 struct MarketMakerConfig {
     InstrumentID instrument;
@@ -100,6 +109,7 @@ struct MarketMakerConfig {
     Timestamp update_interval;
     double inventory_skew_factor;
     Quantity max_position;
+    double latency_jitter{0.0};
 };
 
 /**
@@ -112,6 +122,10 @@ struct MarketMakerConfig {
  *   (BUY too high above fair, SELL too low below fair)
  * - stale_order_threshold: Cancel orders too far from fair to ever execute
  *   (BUY too far below fair, SELL too far above fair)
+ *
+ * Latency jitter: sigma parameter for log-normal latency jitter; 0 = no jitter.
+ * When > 0, each action's latency is sampled from LogNormal(ln(base_latency), sigma)
+ * so the median equals the base latency.
  */
 struct InformedTraderConfig {
     InstrumentID instrument;
@@ -123,18 +137,22 @@ struct InformedTraderConfig {
     double observation_noise;
     Price adverse_fill_threshold;
     Price stale_order_threshold;
+    double latency_jitter{0.0};
 };
 
 /**
  * Configuration for a single agent instance.
  * Contains the agent type, identifier, and type-specific configuration.
+ *
+ * Latency: per-agent base latency; 0 means use global default.
+ * Latency jitter is configured per agent type in the type-specific config.
  */
 struct AgentConfig {
     ClientID id;
     std::string type;
     std::uint64_t seed;
     Timestamp initial_wakeup;
-    Timestamp latency{0}; // Per-agent latency; 0 means use global default
+    Timestamp latency{0};
     NoiseTraderConfig noise_trader;
     MarketMakerConfig market_maker;
     InformedTraderConfig informed_trader;
