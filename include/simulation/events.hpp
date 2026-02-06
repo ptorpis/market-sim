@@ -76,6 +76,7 @@ struct Trade {
     ClientID seller_id;
     Quantity quantity;
     Price price;
+    OrderSide aggressor_side{};
 };
 
 using Event = std::variant<OrderSubmitted, CancellationSubmitted, ModificationSubmitted,

@@ -33,6 +33,7 @@ struct TradeEvent {
     Price price;
     Timestamp timestamp;
     InstrumentID instrument_id;
+    OrderSide aggressor_side;
 };
 
 struct MatchResult {

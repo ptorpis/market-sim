@@ -244,15 +244,18 @@ MatchResult MatchingEngine::match_order_(const OrderRequest& request) {
                 seller_order_id = incoming_order_id;
             }
 
-            trade_vec.emplace_back(TradeEvent{.trade_id = get_next_trade_id_(),
-                                              .buyer_order_id = buyer_order_id,
-                                              .seller_order_id = seller_order_id,
-                                              .buyer_id = buyer_id,
-                                              .seller_id = seller_id,
-                                              .quantity = match_quantity,
-                                              .price = best_price,
-                                              .timestamp = Timestamp{0},
-                                              .instrument_id = instrumentID_});
+            trade_vec.emplace_back(TradeEvent{
+                .trade_id = get_next_trade_id_(),
+                .buyer_order_id = buyer_order_id,
+                .seller_order_id = seller_order_id,
+                .buyer_id = buyer_id,
+                .seller_id = seller_id,
+                .quantity = match_quantity,
+                .price = best_price,
+                .timestamp = Timestamp{0},
+                .instrument_id = instrumentID_,
+                .aggressor_side =
+                    SidePolicy::is_buyer() ? OrderSide::BUY : OrderSide::SELL});
 
             if (qIt->quantity.is_zero()) {
                 qIt->status = OrderStatus::FILLED;

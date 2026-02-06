@@ -38,10 +38,11 @@ public:
     }
 
     void write_trade(const TradeRecord& t) {
-        std::println(trades_file_, "{},{},{},{},{},{},{},{},{}", t.timestamp.value(),
+        std::println(trades_file_, "{},{},{},{},{},{},{},{},{},{},{}", t.timestamp.value(),
                      t.trade_id.value(), t.instrument_id.value(), t.buyer_id.value(),
                      t.seller_id.value(), t.buyer_order_id.value(), t.seller_order_id.value(),
-                     t.price.value(), t.quantity.value());
+                     t.price.value(), t.quantity.value(), order_side_to_string(t.aggressor_side),
+                     t.fair_price.value());
     }
 
     void write_pnl(const PnLSnapshot& p) {
@@ -76,7 +77,8 @@ private:
 
         std::println(trades_file_,
                      "timestamp,trade_id,instrument_id,buyer_id,seller_id,"
-                     "buyer_order_id,seller_order_id,price,quantity");
+                     "buyer_order_id,seller_order_id,price,quantity,"
+                     "aggressor_side,fair_price");
 
         std::println(pnl_file_,
                      "timestamp,client_id,long_position,short_position,cash,fair_price");

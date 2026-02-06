@@ -170,11 +170,13 @@ TEST_F(PersistenceTest, CSVWriterWritesTrade) {
                                        .buyer_order_id = OrderID{10},
                                        .seller_order_id = OrderID{20},
                                        .price = Price{1000},
-                                       .quantity = Quantity{50}});
+                                       .quantity = Quantity{50},
+                                       .aggressor_side = OrderSide::BUY,
+                                       .fair_price = Price{995}});
     }
 
     std::string content = read_file(test_dir_ / "trades.csv");
-    EXPECT_TRUE(content.find("200,1,1,1,2,10,20,1000,50") != std::string::npos);
+    EXPECT_TRUE(content.find("200,1,1,1,2,10,20,1000,50,BUY,995") != std::string::npos);
 }
 
 TEST_F(PersistenceTest, CSVWriterWritesPnL) {
@@ -414,9 +416,10 @@ TEST_F(PersistenceTest, DataCollectorRecordsTrade) {
                     .buyer_id = ClientID{1},
                     .seller_id = ClientID{2},
                     .quantity = Quantity{50},
-                    .price = Price{1000}};
+                    .price = Price{1000},
+                    .aggressor_side = OrderSide::BUY};
 
-        collector.on_trade(trade);
+        collector.on_trade(trade, Price{995});
         collector.finalize(Timestamp{1000});
     }
 
@@ -435,7 +438,8 @@ TEST_F(PersistenceTest, DataCollectorRecordsFill) {
                     .buyer_id = ClientID{1},
                     .seller_id = ClientID{2},
                     .quantity = Quantity{50},
-                    .price = Price{1000}};
+                    .price = Price{1000},
+                    .aggressor_side = OrderSide::BUY};
 
         collector.on_fill(trade, OrderID{10}, ClientID{1}, Quantity{0}, OrderSide::BUY);
         collector.finalize(Timestamp{1000});
@@ -691,7 +695,9 @@ TEST_F(PersistenceTest, CSVWriterHandlesLargeValues) {
                                        .buyer_order_id = OrderID{1},
                                        .seller_order_id = OrderID{2},
                                        .price = Price{999999999999},
-                                       .quantity = Quantity{999999999}});
+                                       .quantity = Quantity{999999999},
+                                       .aggressor_side = OrderSide::SELL,
+                                       .fair_price = Price{999999999998}});
     }
 
     std::string content = read_file(test_dir_ / "trades.csv");

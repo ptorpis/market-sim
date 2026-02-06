@@ -35,6 +35,8 @@ struct TradeRecord {
     OrderID seller_order_id;
     Price price;
     Quantity quantity;
+    OrderSide aggressor_side;
+    Price fair_price;
 };
 
 struct PnLSnapshot {

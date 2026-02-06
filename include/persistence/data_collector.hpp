@@ -35,7 +35,7 @@ public:
     }
 
     // Called when a trade occurs - records the trade and FILL deltas for both sides
-    void on_trade(const Trade& trade) {
+    void on_trade(const Trade& trade, Price fair_price) {
         csv_writer_.write_trade(TradeRecord{.timestamp = trade.timestamp,
                                             .trade_id = trade.trade_id,
                                             .instrument_id = trade.instrument_id,
@@ -44,7 +44,9 @@ public:
                                             .buyer_order_id = trade.buyer_order_id,
                                             .seller_order_id = trade.seller_order_id,
                                             .price = trade.price,
-                                            .quantity = trade.quantity});
+                                            .quantity = trade.quantity,
+                                            .aggressor_side = trade.aggressor_side,
+                                            .fair_price = fair_price});
     }
 
     // Called after a fill to record the FILL delta for a specific order

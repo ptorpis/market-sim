@@ -312,7 +312,8 @@ private:
                         .buyer_id = trade_event.buyer_id,
                         .seller_id = trade_event.seller_id,
                         .quantity = trade_event.quantity,
-                        .price = trade_event.price};
+                        .price = trade_event.price,
+                        .aggressor_side = trade_event.aggressor_side};
 
             notify_trade(trade, engine_it->second.get());
         }
@@ -387,7 +388,8 @@ private:
                                     .buyer_id = trade_event.buyer_id,
                                     .seller_id = trade_event.seller_id,
                                     .quantity = trade_event.quantity,
-                                    .price = trade_event.price};
+                                    .price = trade_event.price,
+                                    .aggressor_side = trade_event.aggressor_side};
                         notify_trade(trade, engine.get());
                     }
                 }
@@ -454,7 +456,7 @@ private:
 
         // Record trade and FILL deltas
         if (data_collector_) {
-            data_collector_->on_trade(trade);
+            data_collector_->on_trade(trade, fair_price());
 
             if (engine) {
                 // Record FILL delta for buyer order

@@ -581,6 +581,7 @@ TEST_F(MatchingEngineTest, TradeEventHasCorrectBuyerAndSeller) {
     EXPECT_EQ(trade.seller_id, ClientID{10});
     EXPECT_EQ(trade.buyer_order_id, result.order_id);
     EXPECT_EQ(trade.seller_order_id, OrderID{1});
+    EXPECT_EQ(trade.aggressor_side, OrderSide::BUY);
 }
 
 TEST_F(MatchingEngineTest, TradeEventHasCorrectInstrumentId) {
