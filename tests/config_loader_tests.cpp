@@ -404,7 +404,7 @@ TEST(ConfigLoaderTest, ParseFullSimulationConfig) {
 }
 
 TEST(ConfigLoaderTest, SimulationConfigWithMinimalFields) {
-    json j = {};
+    json j = json::object();  // Empty object, not null
 
     SimulationConfig config = j.get<SimulationConfig>();
 
@@ -549,4 +549,539 @@ TEST(ConfigLoaderTest, ParseAgentConfigWithoutLatencyDefaultsToZero) {
     AgentConfig config = j.get<AgentConfig>();
 
     EXPECT_EQ(config.latency, Timestamp{0});
+}
+
+// =============================================================================
+// Garbage Input Tests - Wrong Types
+// =============================================================================
+
+TEST(ConfigLoaderGarbageTest, StringWhereNumberExpected) {
+    json j = {
+        {"initial_price", "not_a_number"},
+        {"drift", 0.0001},
+        {"volatility", 0.005},
+        {"tick_size", 1000}
+    };
+
+    EXPECT_THROW(j.get<FairPriceConfig>(), std::runtime_error);
+}
+
+TEST(ConfigLoaderGarbageTest, NumberWhereStringExpected) {
+    json j = {
+        {"client_id", 1},
+        {"type", 12345},  // Should be a string
+        {"initial_wakeup", 10},
+        {"seed", 100},
+        {"config", {}}
+    };
+
+    EXPECT_THROW(j.get<AgentConfig>(), json::type_error);
+}
+
+TEST(ConfigLoaderGarbageTest, ArrayWhereObjectExpected) {
+    json j = json::array({1, 2, 3});  // config expects an object
+
+    EXPECT_THROW(j.get<FairPriceConfig>(), json::type_error);
+}
+
+TEST(ConfigLoaderGarbageTest, ObjectWhereArrayExpected) {
+    json j = {
+        {"instruments", {{"not", "an_array"}}}  // Should be array of numbers
+    };
+
+    EXPECT_THROW(j.get<SimulationConfig>(), std::runtime_error);
+}
+
+TEST(ConfigLoaderGarbageTest, BooleanWhereNumberExpected) {
+    json j = {
+        {"initial_price", true},
+        {"drift", 0.0001},
+        {"volatility", 0.005},
+        {"tick_size", 1000}
+    };
+
+    EXPECT_THROW(j.get<FairPriceConfig>(), std::runtime_error);
+}
+
+TEST(ConfigLoaderGarbageTest, NullWhereNumberExpected) {
+    json j = {
+        {"initial_price", nullptr},
+        {"drift", 0.0001},
+        {"volatility", 0.005},
+        {"tick_size", 1000}
+    };
+
+    EXPECT_THROW(j.get<FairPriceConfig>(), std::runtime_error);
+}
+
+TEST(ConfigLoaderGarbageTest, NullWhereStringExpected) {
+    json j = {
+        {"client_id", 1},
+        {"type", nullptr},
+        {"initial_wakeup", 10},
+        {"seed", 100},
+        {"config", {}}
+    };
+
+    EXPECT_THROW(j.get<AgentConfig>(), json::type_error);
+}
+
+TEST(ConfigLoaderGarbageTest, ObjectWhereNumberExpected) {
+    json j = {
+        {"initial_price", {{"nested", "object"}}},
+        {"drift", 0.0001},
+        {"volatility", 0.005},
+        {"tick_size", 1000}
+    };
+
+    EXPECT_THROW(j.get<FairPriceConfig>(), std::runtime_error);
+}
+
+// =============================================================================
+// Garbage Input Tests - Invalid Numeric Values
+// =============================================================================
+
+TEST(ConfigLoaderGarbageTest, NegativeNumberForUnsigned) {
+    json j = {
+        {"initial_price", -1000},
+        {"drift", 0.0001},
+        {"volatility", 0.005},
+        {"tick_size", 1000}
+    };
+
+    EXPECT_THROW(j.get<FairPriceConfig>(), std::runtime_error);
+}
+
+TEST(ConfigLoaderGarbageTest, FloatingPointWhereIntegerExpected) {
+    json j = {
+        {"initial_price", 1000.5},  // Should be integer
+        {"drift", 0.0001},
+        {"volatility", 0.005},
+        {"tick_size", 1000}
+    };
+
+    // JSON allows this - float gets truncated. This is expected behavior.
+    FairPriceConfig config = j.get<FairPriceConfig>();
+    EXPECT_EQ(config.initial_price, Price{1000});
+}
+
+TEST(ConfigLoaderGarbageTest, ExtremelyLargeNumber) {
+    // Use a float clearly exceeding uint64_t max (avoids floating point edge cases)
+    json j = {
+        {"initial_price", 1e25},  // ~10^25, way larger than UINT64_MAX (~1.8e19)
+        {"drift", 0.0001},
+        {"volatility", 0.005},
+        {"tick_size", 1000}
+    };
+
+    EXPECT_THROW(j.get<FairPriceConfig>(), std::runtime_error);
+}
+
+TEST(ConfigLoaderGarbageTest, NegativeQuantity) {
+    json j = {
+        {"instrument", 1},
+        {"observation_noise", 50.0},
+        {"spread", 36},
+        {"min_quantity", -10},  // Negative
+        {"max_quantity", 100},
+        {"min_interval", 50},
+        {"max_interval", 200},
+        {"adverse_fill_threshold", 100},
+        {"stale_order_threshold", 1000}
+    };
+
+    EXPECT_THROW(j.get<NoiseTraderConfig>(), std::runtime_error);
+}
+
+// =============================================================================
+// Garbage Input Tests - Invalid String Values
+// =============================================================================
+
+TEST(ConfigLoaderGarbageTest, EmptyAgentType) {
+    json j = {
+        {"client_id", 1},
+        {"type", ""},  // Empty string
+        {"initial_wakeup", 10},
+        {"seed", 100},
+        {"config", {}}
+    };
+
+    // Empty type is unknown, should throw runtime_error
+    EXPECT_THROW(j.get<AgentConfig>(), std::runtime_error);
+}
+
+TEST(ConfigLoaderGarbageTest, InvalidOrderSide) {
+    json j = {
+        {"instrument", 1},
+        {"side", "INVALID"},  // Not BUY or SELL
+        {"price", 1000},
+        {"quantity", 100}
+    };
+
+    // Current code defaults to SELL for any non-"BUY" string
+    InitialOrder order = j.get<InitialOrder>();
+    EXPECT_EQ(order.side, OrderSide::SELL);  // Documents current behavior
+}
+
+TEST(ConfigLoaderGarbageTest, InvalidFairPriceModel) {
+    json j = {
+        {"model", "invalid_model"},
+        {"initial_price", 1000000},
+        {"drift", 0.0001},
+        {"volatility", 0.005},
+        {"tick_size", 1000}
+    };
+
+    // Unknown model defaults to GBM
+    FairPriceModelConfig config = parse_fair_price_config(j);
+    EXPECT_TRUE(std::holds_alternative<FairPriceConfig>(config));
+}
+
+TEST(ConfigLoaderGarbageTest, WhitespaceAgentType) {
+    json j = {
+        {"client_id", 1},
+        {"type", "   "},  // Whitespace only
+        {"initial_wakeup", 10},
+        {"seed", 100},
+        {"config", {}}
+    };
+
+    EXPECT_THROW(j.get<AgentConfig>(), std::runtime_error);
+}
+
+TEST(ConfigLoaderGarbageTest, MixedCaseAgentType) {
+    json j = {
+        {"client_id", 1},
+        {"type", "noisetrader"},  // Wrong case
+        {"initial_wakeup", 10},
+        {"seed", 100},
+        {"config", {}}
+    };
+
+    EXPECT_THROW(j.get<AgentConfig>(), std::runtime_error);
+}
+
+// =============================================================================
+// Garbage Input Tests - Missing Required Fields
+// =============================================================================
+
+TEST(ConfigLoaderGarbageTest, NoiseTraderConfigMissingField) {
+    json j = {
+        {"instrument", 1},
+        {"observation_noise", 50.0},
+        {"spread", 36}
+        // Missing all other required fields
+    };
+
+    EXPECT_THROW(j.get<NoiseTraderConfig>(), json::out_of_range);
+}
+
+TEST(ConfigLoaderGarbageTest, MarketMakerConfigMissingField) {
+    json j = {
+        {"instrument", 1},
+        {"observation_noise", 10.0}
+        // Missing half_spread, quote_size, etc.
+    };
+
+    EXPECT_THROW(j.get<MarketMakerConfig>(), json::out_of_range);
+}
+
+TEST(ConfigLoaderGarbageTest, InformedTraderConfigMissingField) {
+    json j = {
+        {"instrument", 1}
+        // Missing all other required fields
+    };
+
+    EXPECT_THROW(j.get<InformedTraderConfig>(), json::out_of_range);
+}
+
+TEST(ConfigLoaderGarbageTest, JumpDiffusionConfigMissingJumpParams) {
+    json j = {
+        {"initial_price", 1000000},
+        {"drift", 0.0001},
+        {"volatility", 0.005},
+        {"tick_size", 1000}
+        // Missing jump_intensity, jump_mean, jump_std
+    };
+
+    EXPECT_THROW(j.get<JumpDiffusionConfig>(), json::out_of_range);
+}
+
+TEST(ConfigLoaderGarbageTest, AgentConfigMissingClientId) {
+    json j = {
+        // Missing client_id
+        {"type", "NoiseTrader"},
+        {"initial_wakeup", 10},
+        {"seed", 100},
+        {"config", {
+            {"instrument", 1},
+            {"observation_noise", 50.0},
+            {"spread", 36},
+            {"min_quantity", 10},
+            {"max_quantity", 100},
+            {"min_interval", 50},
+            {"max_interval", 200},
+            {"adverse_fill_threshold", 100},
+            {"stale_order_threshold", 1000}
+        }}
+    };
+
+    EXPECT_THROW(j.get<AgentConfig>(), json::out_of_range);
+}
+
+TEST(ConfigLoaderGarbageTest, AgentConfigMissingConfig) {
+    json j = {
+        {"client_id", 1},
+        {"type", "NoiseTrader"},
+        {"initial_wakeup", 10},
+        {"seed", 100}
+        // Missing "config" field
+    };
+
+    EXPECT_THROW(j.get<AgentConfig>(), json::out_of_range);
+}
+
+TEST(ConfigLoaderGarbageTest, InitialOrderMissingPrice) {
+    json j = {
+        {"instrument", 1},
+        {"side", "BUY"},
+        // Missing price
+        {"quantity", 100}
+    };
+
+    EXPECT_THROW(j.get<InitialOrder>(), json::out_of_range);
+}
+
+TEST(ConfigLoaderGarbageTest, NoiseTraderGroupMissingConfig) {
+    json j = {
+        {"count", 10},
+        {"start_client_id", 1},
+        {"base_seed", 100},
+        {"initial_wakeup_start", 5},
+        {"initial_wakeup_step", 10}
+        // Missing "config" field
+    };
+
+    EXPECT_THROW(j.get<NoiseTraderGroupConfig>(), json::out_of_range);
+}
+
+// =============================================================================
+// Garbage Input Tests - Nested Invalid Data
+// =============================================================================
+
+TEST(ConfigLoaderGarbageTest, NestedGarbageInAgentConfig) {
+    json j = {
+        {"client_id", 1},
+        {"type", "NoiseTrader"},
+        {"initial_wakeup", 10},
+        {"seed", 100},
+        {"config", {
+            {"instrument", "not_a_number"},  // Wrong type in nested config
+            {"observation_noise", 50.0},
+            {"spread", 36},
+            {"min_quantity", 10},
+            {"max_quantity", 100},
+            {"min_interval", 50},
+            {"max_interval", 200},
+            {"adverse_fill_threshold", 100},
+            {"stale_order_threshold", 1000}
+        }}
+    };
+
+    EXPECT_THROW(j.get<AgentConfig>(), std::runtime_error);
+}
+
+TEST(ConfigLoaderGarbageTest, NestedGarbageInNoiseTraderGroup) {
+    json j = {
+        {"count", 10},
+        {"start_client_id", 1},
+        {"base_seed", 100},
+        {"initial_wakeup_start", 5},
+        {"initial_wakeup_step", 10},
+        {"config", {
+            {"instrument", 1},
+            {"observation_noise", "garbage"},  // Wrong type
+            {"spread", 36},
+            {"min_quantity", 10},
+            {"max_quantity", 100},
+            {"min_interval", 50},
+            {"max_interval", 200},
+            {"adverse_fill_threshold", 100},
+            {"stale_order_threshold", 1000}
+        }}
+    };
+
+    EXPECT_THROW(j.get<NoiseTraderGroupConfig>(), json::type_error);
+}
+
+TEST(ConfigLoaderGarbageTest, SimulationConfigWithGarbageAgents) {
+    json j = {
+        {"agents", {
+            {
+                {"client_id", "not_a_number"},  // Wrong type
+                {"type", "NoiseTrader"},
+                {"initial_wakeup", 10},
+                {"seed", 100},
+                {"config", {}}
+            }
+        }}
+    };
+
+    EXPECT_THROW(j.get<SimulationConfig>(), std::runtime_error);
+}
+
+TEST(ConfigLoaderGarbageTest, SimulationConfigWithGarbageInstruments) {
+    json j = {
+        {"instruments", {"a", "b", "c"}}  // Strings instead of numbers
+    };
+
+    EXPECT_THROW(j.get<SimulationConfig>(), std::runtime_error);
+}
+
+// =============================================================================
+// Garbage Input Tests - Completely Invalid JSON Structures
+// =============================================================================
+
+TEST(ConfigLoaderGarbageTest, PrimitiveInsteadOfObject) {
+    json j = 12345;  // Just a number, not an object
+
+    EXPECT_THROW(j.get<SimulationConfig>(), std::runtime_error);
+}
+
+TEST(ConfigLoaderGarbageTest, NullJson) {
+    json j = nullptr;
+
+    EXPECT_THROW(j.get<SimulationConfig>(), std::runtime_error);
+}
+
+TEST(ConfigLoaderGarbageTest, StringInsteadOfObject) {
+    json j = "this is just a string";
+
+    EXPECT_THROW(j.get<SimulationConfig>(), std::runtime_error);
+}
+
+TEST(ConfigLoaderGarbageTest, ArrayInsteadOfSimulationConfig) {
+    json j = json::array({1, 2, 3, 4, 5});
+
+    EXPECT_THROW(j.get<SimulationConfig>(), std::runtime_error);
+}
+
+// =============================================================================
+// Garbage Input Tests - Edge Cases
+// =============================================================================
+
+TEST(ConfigLoaderGarbageTest, ZeroCount) {
+    json j = {
+        {"count", 0},  // Zero traders
+        {"start_client_id", 1},
+        {"base_seed", 100},
+        {"initial_wakeup_start", 5},
+        {"initial_wakeup_step", 10},
+        {"config", {
+            {"instrument", 1},
+            {"observation_noise", 50.0},
+            {"spread", 36},
+            {"min_quantity", 10},
+            {"max_quantity", 100},
+            {"min_interval", 50},
+            {"max_interval", 200},
+            {"adverse_fill_threshold", 100},
+            {"stale_order_threshold", 1000}
+        }}
+    };
+
+    // Zero count should parse (semantic validation is separate)
+    NoiseTraderGroupConfig config = j.get<NoiseTraderGroupConfig>();
+    EXPECT_EQ(config.count, 0ULL);
+}
+
+TEST(ConfigLoaderGarbageTest, ZeroQuantityRange) {
+    json j = {
+        {"instrument", 1},
+        {"observation_noise", 50.0},
+        {"spread", 36},
+        {"min_quantity", 100},
+        {"max_quantity", 10},  // min > max (invalid semantically)
+        {"min_interval", 50},
+        {"max_interval", 200},
+        {"adverse_fill_threshold", 100},
+        {"stale_order_threshold", 1000}
+    };
+
+    // Should parse successfully (semantic validation is separate)
+    NoiseTraderConfig config = j.get<NoiseTraderConfig>();
+    EXPECT_EQ(config.min_quantity, Quantity{100});
+    EXPECT_EQ(config.max_quantity, Quantity{10});
+}
+
+TEST(ConfigLoaderGarbageTest, VeryLongString) {
+    std::string long_string(10000, 'x');
+    json j = {
+        {"client_id", 1},
+        {"type", long_string},
+        {"initial_wakeup", 10},
+        {"seed", 100},
+        {"config", {}}
+    };
+
+    // Should throw runtime_error for unknown agent type
+    EXPECT_THROW(j.get<AgentConfig>(), std::runtime_error);
+}
+
+TEST(ConfigLoaderGarbageTest, SpecialCharactersInType) {
+    json j = {
+        {"client_id", 1},
+        {"type", "Noise\nTrader\0Test"},  // Embedded newline and null
+        {"initial_wakeup", 10},
+        {"seed", 100},
+        {"config", {}}
+    };
+
+    EXPECT_THROW(j.get<AgentConfig>(), std::runtime_error);
+}
+
+TEST(ConfigLoaderGarbageTest, UnicodeInType) {
+    json j = {
+        {"client_id", 1},
+        {"type", "NoiseTrader\xF0\x9F\x92\xB0"},  // With emoji
+        {"initial_wakeup", 10},
+        {"seed", 100},
+        {"config", {}}
+    };
+
+    EXPECT_THROW(j.get<AgentConfig>(), std::runtime_error);
+}
+
+TEST(ConfigLoaderGarbageTest, DuplicateKeys) {
+    // JSON spec says behavior is undefined, nlohmann::json uses last value
+    std::string json_str = R"({
+        "initial_price": 1000,
+        "initial_price": 2000,
+        "drift": 0.0001,
+        "volatility": 0.005,
+        "tick_size": 1000
+    })";
+
+    json j = json::parse(json_str);
+    FairPriceConfig config = j.get<FairPriceConfig>();
+    EXPECT_EQ(config.initial_price, Price{2000});  // Last value wins
+}
+
+TEST(ConfigLoaderGarbageTest, EmptyAgentsArray) {
+    json j = {
+        {"agents", json::array()}
+    };
+
+    SimulationConfig config = j.get<SimulationConfig>();
+    EXPECT_TRUE(config.agents.empty());
+}
+
+TEST(ConfigLoaderGarbageTest, DeepNestedGarbage) {
+    json j = {
+        {"simulation", {
+            {"latency", {{"deeply", {{"nested", "garbage"}}}}}  // Object where number expected
+        }}
+    };
+
+    EXPECT_THROW(j.get<SimulationConfig>(), std::runtime_error);
 }

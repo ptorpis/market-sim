@@ -4,21 +4,72 @@
 
 #include <nlohmann/json.hpp>
 
+#include <cmath>
 #include <fstream>
+#include <limits>
 #include <stdexcept>
 
+namespace config_loader_detail {
+
+/// Validates that a JSON value is a non-negative integer suitable for uint64_t
+inline std::uint64_t get_uint64(const nlohmann::json& j, const std::string& key) {
+    const auto& val = j.at(key);
+
+    if (val.is_number_integer()) {
+        auto signed_val = val.get<std::int64_t>();
+        if (signed_val < 0) {
+            throw std::runtime_error("Value for '" + key + "' must be non-negative, got: " +
+                                     std::to_string(signed_val));
+        }
+        return static_cast<std::uint64_t>(signed_val);
+    }
+
+    if (val.is_number_unsigned()) {
+        return val.get<std::uint64_t>();
+    }
+
+    if (val.is_number_float()) {
+        auto float_val = val.get<double>();
+        if (float_val < 0.0) {
+            throw std::runtime_error("Value for '" + key + "' must be non-negative");
+        }
+        if (float_val > static_cast<double>(std::numeric_limits<std::uint64_t>::max())) {
+            throw std::runtime_error("Value for '" + key + "' exceeds maximum allowed value");
+        }
+        if (std::isnan(float_val) || std::isinf(float_val)) {
+            throw std::runtime_error("Value for '" + key + "' must be a finite number");
+        }
+        return static_cast<std::uint64_t>(float_val);
+    }
+
+    throw std::runtime_error("Value for '" + key + "' must be a number");
+}
+
+/// Validates that a JSON value is a non-negative integer suitable for uint32_t
+inline std::uint32_t get_uint32(const nlohmann::json& j, const std::string& key) {
+    auto val = get_uint64(j, key);
+    if (val > std::numeric_limits<std::uint32_t>::max()) {
+        throw std::runtime_error("Value for '" + key + "' exceeds maximum allowed value");
+    }
+    return static_cast<std::uint32_t>(val);
+}
+
+} // namespace config_loader_detail
+
 inline void from_json(const nlohmann::json& j, FairPriceConfig& c) {
-    c.initial_price = Price{j.at("initial_price").get<std::uint64_t>()};
+    using namespace config_loader_detail;
+    c.initial_price = Price{get_uint64(j, "initial_price")};
     c.drift = j.at("drift").get<double>();
     c.volatility = j.at("volatility").get<double>();
-    c.tick_size = Timestamp{j.at("tick_size").get<std::uint64_t>()};
+    c.tick_size = Timestamp{get_uint64(j, "tick_size")};
 }
 
 inline void from_json(const nlohmann::json& j, JumpDiffusionConfig& c) {
-    c.initial_price = Price{j.at("initial_price").get<std::uint64_t>()};
+    using namespace config_loader_detail;
+    c.initial_price = Price{get_uint64(j, "initial_price")};
     c.drift = j.at("drift").get<double>();
     c.volatility = j.at("volatility").get<double>();
-    c.tick_size = Timestamp{j.at("tick_size").get<std::uint64_t>()};
+    c.tick_size = Timestamp{get_uint64(j, "tick_size")};
     c.jump_intensity = j.at("jump_intensity").get<double>();
     c.jump_mean = j.at("jump_mean").get<double>();
     c.jump_std = j.at("jump_std").get<double>();
@@ -33,57 +84,60 @@ inline FairPriceModelConfig parse_fair_price_config(const nlohmann::json& j) {
 }
 
 inline void from_json(const nlohmann::json& j, NoiseTraderConfig& c) {
-    c.instrument = InstrumentID{j.at("instrument").get<std::uint32_t>()};
+    using namespace config_loader_detail;
+    c.instrument = InstrumentID{get_uint32(j, "instrument")};
     c.observation_noise = j.at("observation_noise").get<double>();
-    c.spread = Price{j.at("spread").get<std::uint64_t>()};
-    c.min_quantity = Quantity{j.at("min_quantity").get<std::uint64_t>()};
-    c.max_quantity = Quantity{j.at("max_quantity").get<std::uint64_t>()};
-    c.min_interval = Timestamp{j.at("min_interval").get<std::uint64_t>()};
-    c.max_interval = Timestamp{j.at("max_interval").get<std::uint64_t>()};
-    c.adverse_fill_threshold =
-        Price{j.at("adverse_fill_threshold").get<std::uint64_t>()};
-    c.stale_order_threshold = Price{j.at("stale_order_threshold").get<std::uint64_t>()};
+    c.spread = Price{get_uint64(j, "spread")};
+    c.min_quantity = Quantity{get_uint64(j, "min_quantity")};
+    c.max_quantity = Quantity{get_uint64(j, "max_quantity")};
+    c.min_interval = Timestamp{get_uint64(j, "min_interval")};
+    c.max_interval = Timestamp{get_uint64(j, "max_interval")};
+    c.adverse_fill_threshold = Price{get_uint64(j, "adverse_fill_threshold")};
+    c.stale_order_threshold = Price{get_uint64(j, "stale_order_threshold")};
 }
 
 inline void from_json(const nlohmann::json& j, NoiseTraderGroupConfig& c) {
-    c.count = j.at("count").get<std::uint64_t>();
-    c.start_client_id = ClientID{j.at("start_client_id").get<std::uint64_t>()};
-    c.base_seed = j.at("base_seed").get<std::uint64_t>();
-    c.initial_wakeup_start = Timestamp{j.at("initial_wakeup_start").get<std::uint64_t>()};
-    c.initial_wakeup_step = Timestamp{j.at("initial_wakeup_step").get<std::uint64_t>()};
+    using namespace config_loader_detail;
+    c.count = get_uint64(j, "count");
+    c.start_client_id = ClientID{get_uint64(j, "start_client_id")};
+    c.base_seed = get_uint64(j, "base_seed");
+    c.initial_wakeup_start = Timestamp{get_uint64(j, "initial_wakeup_start")};
+    c.initial_wakeup_step = Timestamp{get_uint64(j, "initial_wakeup_step")};
     c.config = j.at("config").get<NoiseTraderConfig>();
 }
 
 inline void from_json(const nlohmann::json& j, MarketMakerConfig& c) {
-    c.instrument = InstrumentID{j.at("instrument").get<std::uint32_t>()};
+    using namespace config_loader_detail;
+    c.instrument = InstrumentID{get_uint32(j, "instrument")};
     c.observation_noise = j.at("observation_noise").get<double>();
-    c.half_spread = Price{j.at("half_spread").get<std::uint64_t>()};
-    c.quote_size = Quantity{j.at("quote_size").get<std::uint64_t>()};
-    c.update_interval = Timestamp{j.at("update_interval").get<std::uint64_t>()};
+    c.half_spread = Price{get_uint64(j, "half_spread")};
+    c.quote_size = Quantity{get_uint64(j, "quote_size")};
+    c.update_interval = Timestamp{get_uint64(j, "update_interval")};
     c.inventory_skew_factor = j.at("inventory_skew_factor").get<double>();
-    c.max_position = Quantity{j.at("max_position").get<std::uint64_t>()};
+    c.max_position = Quantity{get_uint64(j, "max_position")};
 }
 
 inline void from_json(const nlohmann::json& j, InformedTraderConfig& c) {
-    c.instrument = InstrumentID{j.at("instrument").get<std::uint32_t>()};
-    c.min_quantity = Quantity{j.at("min_quantity").get<std::uint64_t>()};
-    c.max_quantity = Quantity{j.at("max_quantity").get<std::uint64_t>()};
-    c.min_interval = Timestamp{j.at("min_interval").get<std::uint64_t>()};
-    c.max_interval = Timestamp{j.at("max_interval").get<std::uint64_t>()};
-    c.min_edge = Price{j.at("min_edge").get<std::uint64_t>()};
+    using namespace config_loader_detail;
+    c.instrument = InstrumentID{get_uint32(j, "instrument")};
+    c.min_quantity = Quantity{get_uint64(j, "min_quantity")};
+    c.max_quantity = Quantity{get_uint64(j, "max_quantity")};
+    c.min_interval = Timestamp{get_uint64(j, "min_interval")};
+    c.max_interval = Timestamp{get_uint64(j, "max_interval")};
+    c.min_edge = Price{get_uint64(j, "min_edge")};
     c.observation_noise = j.at("observation_noise").get<double>();
-    c.adverse_fill_threshold =
-        Price{j.at("adverse_fill_threshold").get<std::uint64_t>()};
-    c.stale_order_threshold = Price{j.at("stale_order_threshold").get<std::uint64_t>()};
+    c.adverse_fill_threshold = Price{get_uint64(j, "adverse_fill_threshold")};
+    c.stale_order_threshold = Price{get_uint64(j, "stale_order_threshold")};
 }
 
 inline void from_json(const nlohmann::json& j, AgentConfig& c) {
-    c.id = ClientID{j.at("client_id").get<std::uint64_t>()};
+    using namespace config_loader_detail;
+    c.id = ClientID{get_uint64(j, "client_id")};
     c.type = j.at("type").get<std::string>();
-    c.seed = j.at("seed").get<std::uint64_t>();
-    c.initial_wakeup = Timestamp{j.at("initial_wakeup").get<std::uint64_t>()};
+    c.seed = get_uint64(j, "seed");
+    c.initial_wakeup = Timestamp{get_uint64(j, "initial_wakeup")};
     if (j.contains("latency")) {
-        c.latency = Timestamp{j.at("latency").get<std::uint64_t>()};
+        c.latency = Timestamp{get_uint64(j, "latency")};
     }
 
     const auto& config = j.at("config");
@@ -99,33 +153,55 @@ inline void from_json(const nlohmann::json& j, AgentConfig& c) {
 }
 
 inline void from_json(const nlohmann::json& j, InitialOrder& o) {
-    o.instrument = InstrumentID{j.at("instrument").get<std::uint32_t>()};
+    using namespace config_loader_detail;
+    o.instrument = InstrumentID{get_uint32(j, "instrument")};
     std::string side_str = j.at("side").get<std::string>();
     o.side = (side_str == "BUY") ? OrderSide::BUY : OrderSide::SELL;
-    o.price = Price{j.at("price").get<std::uint64_t>()};
-    o.quantity = Quantity{j.at("quantity").get<std::uint64_t>()};
+    o.price = Price{get_uint64(j, "price")};
+    o.quantity = Quantity{get_uint64(j, "quantity")};
 }
 
 inline void from_json(const nlohmann::json& j, SimulationConfig& c) {
+    using namespace config_loader_detail;
+
+    if (!j.is_object()) {
+        throw std::runtime_error("SimulationConfig must be a JSON object");
+    }
+
     if (j.contains("simulation")) {
         const auto& sim = j.at("simulation");
+        if (!sim.is_object()) {
+            throw std::runtime_error("'simulation' must be a JSON object");
+        }
         if (sim.contains("latency")) {
-            c.latency = Timestamp{sim.at("latency").get<std::uint64_t>()};
+            c.latency = Timestamp{get_uint64(sim, "latency")};
         }
         if (sim.contains("duration")) {
-            c.duration = Timestamp{sim.at("duration").get<std::uint64_t>()};
+            c.duration = Timestamp{get_uint64(sim, "duration")};
         }
         if (sim.contains("output_dir")) {
             c.output_dir = sim.at("output_dir").get<std::string>();
         }
         if (sim.contains("pnl_snapshot_interval")) {
-            c.pnl_snapshot_interval =
-                Timestamp{sim.at("pnl_snapshot_interval").get<std::uint64_t>()};
+            c.pnl_snapshot_interval = Timestamp{get_uint64(sim, "pnl_snapshot_interval")};
         }
     }
 
     if (j.contains("instruments")) {
-        for (const auto& id : j.at("instruments")) {
+        const auto& instruments = j.at("instruments");
+        if (!instruments.is_array()) {
+            throw std::runtime_error("'instruments' must be a JSON array");
+        }
+        for (std::size_t i = 0; i < instruments.size(); ++i) {
+            const auto& id = instruments[i];
+            if (!id.is_number()) {
+                throw std::runtime_error("instruments[" + std::to_string(i) +
+                                         "] must be a number");
+            }
+            if (id.is_number_integer() && id.get<std::int64_t>() < 0) {
+                throw std::runtime_error("instruments[" + std::to_string(i) +
+                                         "] must be non-negative");
+            }
             c.instruments.push_back(InstrumentID{id.get<std::uint32_t>()});
         }
     }
@@ -134,7 +210,7 @@ inline void from_json(const nlohmann::json& j, SimulationConfig& c) {
         const auto& fp = j.at("fair_price");
         c.fair_price = parse_fair_price_config(fp);
         if (fp.contains("seed")) {
-            c.fair_price_seed = fp.at("seed").get<std::uint64_t>();
+            c.fair_price_seed = get_uint64(fp, "seed");
         }
     }
 
@@ -143,13 +219,21 @@ inline void from_json(const nlohmann::json& j, SimulationConfig& c) {
     }
 
     if (j.contains("agents")) {
-        for (const auto& agent : j.at("agents")) {
+        const auto& agents = j.at("agents");
+        if (!agents.is_array()) {
+            throw std::runtime_error("'agents' must be a JSON array");
+        }
+        for (const auto& agent : agents) {
             c.agents.push_back(agent.get<AgentConfig>());
         }
     }
 
     if (j.contains("initial_orders")) {
-        for (const auto& order : j.at("initial_orders")) {
+        const auto& orders = j.at("initial_orders");
+        if (!orders.is_array()) {
+            throw std::runtime_error("'initial_orders' must be a JSON array");
+        }
+        for (const auto& order : orders) {
             c.initial_orders.push_back(order.get<InitialOrder>());
         }
     }
