@@ -1085,3 +1085,55 @@ TEST(ConfigLoaderGarbageTest, DeepNestedGarbage) {
 
     EXPECT_THROW(j.get<SimulationConfig>(), std::runtime_error);
 }
+
+// =============================================================================
+// Fair Price Model Mismatch Tests
+// =============================================================================
+
+TEST(ConfigLoaderGarbageTest, JumpDiffusionModelWithGBMParams) {
+    // Specifying model="jump_diffusion" but only providing GBM params
+    // should throw because jump params are missing
+    json j = {
+        {"model", "jump_diffusion"},
+        {"initial_price", 1000000},
+        {"drift", 0.0001},
+        {"volatility", 0.005},
+        {"tick_size", 1000}
+        // Missing: jump_intensity, jump_mean, jump_std
+    };
+
+    EXPECT_THROW(parse_fair_price_config(j), json::out_of_range);
+}
+
+TEST(ConfigLoaderGarbageTest, GBMModelWithJumpDiffusionParams) {
+    // Specifying model="gbm" but providing jump_diffusion params
+    // should throw because jump params are extraneous for GBM
+    json j = {
+        {"model", "gbm"},
+        {"initial_price", 1000000},
+        {"drift", 0.0001},
+        {"volatility", 0.005},
+        {"tick_size", 1000},
+        {"jump_intensity", 0.1},
+        {"jump_mean", 0.0},
+        {"jump_std", 0.05}
+    };
+
+    EXPECT_THROW(parse_fair_price_config(j), std::runtime_error);
+}
+
+TEST(ConfigLoaderGarbageTest, DefaultModelWithJumpDiffusionParams) {
+    // No model specified (defaults to GBM) but providing jump_diffusion params
+    // should throw because jump params are extraneous for GBM
+    json j = {
+        {"initial_price", 1000000},
+        {"drift", 0.0001},
+        {"volatility", 0.005},
+        {"tick_size", 1000},
+        {"jump_intensity", 0.1},
+        {"jump_mean", 0.0},
+        {"jump_std", 0.05}
+    };
+
+    EXPECT_THROW(parse_fair_price_config(j), std::runtime_error);
+}

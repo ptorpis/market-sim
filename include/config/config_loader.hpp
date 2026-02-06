@@ -80,6 +80,12 @@ inline FairPriceModelConfig parse_fair_price_config(const nlohmann::json& j) {
     if (model == "jump_diffusion") {
         return j.get<JumpDiffusionConfig>();
     }
+    // GBM model: reject if jump diffusion params are present
+    if (j.contains("jump_intensity") || j.contains("jump_mean") || j.contains("jump_std")) {
+        throw std::runtime_error(
+            "GBM model cannot have jump diffusion parameters (jump_intensity, jump_mean, jump_std). "
+            "Use model='jump_diffusion' instead.");
+    }
     return j.get<FairPriceConfig>();
 }
 
