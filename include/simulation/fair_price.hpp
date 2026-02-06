@@ -37,7 +37,6 @@ public:
                   static_cast<double>(config_.tick_size.value());
 
         if (config_.volatility == 0.0) {
-            // Pure drift (or no-op if drift == 0)
             current_price_ *= std::exp(config_.drift * dt);
             last_update_ = t;
             return;
@@ -94,6 +93,21 @@ public:
 
         auto dt = static_cast<double>((t - last_update_).value()) /
                   static_cast<double>(config_.tick_size.value());
+
+        /*
+            adding early exit for this case, without this, g++ actually fails an assertion
+            clang works fine, even without this check
+
+            Note: according to the C++ standard, the precondition for
+           std::poisson_distribution(double mean) is that mean > 0.0 (does not allow =)
+
+            This means that passing 0 below is technically UB
+        */
+        if (config_.volatility == 0.0) {
+            current_price_ *= std::exp(config_.drift * dt);
+            last_update_ = t;
+            return;
+        }
 
         std::normal_distribution<double> normal_dist(0.0, 1.0);
 
