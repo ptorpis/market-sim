@@ -57,6 +57,7 @@ Configuration is via JSON file. See `config_template.json` for a complete exampl
   },
   "instruments": [1],
   "fair_price": {
+    "model": "gbm",
     "initial_price": 1000000,
     "drift": 0.0001,
     "volatility": 0.005,
@@ -105,6 +106,81 @@ This allows scaling to hundreds of noise traders without verbose config files. I
 | `NoiseTrader` | Random liquidity provider, places random buy/sell orders |
 | `MarketMaker` | Quotes both sides around fair price, adjusts for inventory |
 | `InformedTrader` | Trades on information signals when edge exceeds threshold |
+
+#### Fair Price Models
+
+The `fair_price` section controls how the true underlying asset price evolves. Two models are available:
+
+##### Geometric Brownian Motion (GBM)
+
+The default model. Price follows continuous diffusion with constant drift and volatility:
+
+$$\frac{dS}{S} = \mu \, dt + \sigma \, dW$$
+
+```json
+"fair_price": {
+  "model": "gbm",
+  "initial_price": 1000000,
+  "drift": 0.0001,
+  "volatility": 0.005,
+  "tick_size": 1000,
+  "seed": 43
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `model` | `"gbm"` (optional, default if omitted) |
+| `initial_price` | Starting price in integer units |
+| `drift` | Expected return per tick ($\mu$) |
+| `volatility` | Price volatility per tick ($\sigma$) |
+| `tick_size` | Time unit for $dt$ calculation |
+| `seed` | Random seed for reproducibility |
+
+##### Jump Diffusion Model
+
+Extends GBM with random jumps for modeling sudden price movements. Useful for studying adverse selection where informed traders exploit price jumps.
+
+The model follows Merton's Jump Diffusion:
+
+$$\frac{dS}{S} = (\mu - \lambda k) \, dt + \sigma \, dW + J \, dN$$
+
+Where:
+- $dW$ is a Wiener process (continuous diffusion)
+- $dN$ is a Poisson process with intensity $\lambda$ (jump arrivals)
+- $J = e^{\mu_J + \sigma_J Z} - 1$ is the random jump size ($Z \sim N(0,1)$)
+- $k = E[e^J] - 1 = e^{\mu_J + \frac{1}{2}\sigma_J^2} - 1$ compensates for jump risk in the drift
+
+```json
+"fair_price": {
+  "model": "jump_diffusion",
+  "initial_price": 1000000,
+  "drift": 0.0001,
+  "volatility": 0.005,
+  "tick_size": 1000,
+  "jump_intensity": 0.1,
+  "jump_mean": 0.0,
+  "jump_std": 0.05,
+  "seed": 43
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `model` | `"jump_diffusion"` |
+| `initial_price` | Starting price in integer units |
+| `drift` | Expected return per tick ($\mu$) |
+| `volatility` | Diffusion volatility per tick ($\sigma$) |
+| `tick_size` | Time unit for $dt$ calculation |
+| `jump_intensity` | Mean number of jumps per tick ($\lambda$) |
+| `jump_mean` | Mean of log-jump sizes ($\mu_J$) |
+| `jump_std` | Standard deviation of log-jump sizes ($\sigma_J$) |
+| `seed` | Random seed for reproducibility |
+
+**Recommended settings for adverse selection studies:**
+- Higher `jump_intensity` (0.1-0.5) for more frequent jumps
+- Higher `jump_std` (0.05-0.2) for larger jump magnitudes
+- Set `jump_mean` to 0 for symmetric jumps, negative for crash scenarios
 
 ### Output Files
 
@@ -218,7 +294,7 @@ python tools/visualize_timeseries.py output/ --title "My Simulation"
 |--------|-------------|
 | `mid` | Midpoint = (best_bid + best_ask) / 2 |
 | `spread` | best_ask - best_bid |
-| `fair` | Fair price from GBM model |
+| `fair` | Fair price from the configured model (GBM or Jump Diffusion) |
 | `bid` | Best bid price |
 | `ask` | Best ask price |
 

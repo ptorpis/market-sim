@@ -14,6 +14,24 @@ inline void from_json(const nlohmann::json& j, FairPriceConfig& c) {
     c.tick_size = Timestamp{j.at("tick_size").get<std::uint64_t>()};
 }
 
+inline void from_json(const nlohmann::json& j, JumpDiffusionConfig& c) {
+    c.initial_price = Price{j.at("initial_price").get<std::uint64_t>()};
+    c.drift = j.at("drift").get<double>();
+    c.volatility = j.at("volatility").get<double>();
+    c.tick_size = Timestamp{j.at("tick_size").get<std::uint64_t>()};
+    c.jump_intensity = j.at("jump_intensity").get<double>();
+    c.jump_mean = j.at("jump_mean").get<double>();
+    c.jump_std = j.at("jump_std").get<double>();
+}
+
+inline FairPriceModelConfig parse_fair_price_config(const nlohmann::json& j) {
+    std::string model = j.value("model", "gbm");
+    if (model == "jump_diffusion") {
+        return j.get<JumpDiffusionConfig>();
+    }
+    return j.get<FairPriceConfig>();
+}
+
 inline void from_json(const nlohmann::json& j, NoiseTraderConfig& c) {
     c.instrument = InstrumentID{j.at("instrument").get<std::uint32_t>()};
     c.observation_noise = j.at("observation_noise").get<double>();
@@ -114,7 +132,7 @@ inline void from_json(const nlohmann::json& j, SimulationConfig& c) {
 
     if (j.contains("fair_price")) {
         const auto& fp = j.at("fair_price");
-        c.fair_price = fp.get<FairPriceConfig>();
+        c.fair_price = parse_fair_price_config(fp);
         if (fp.contains("seed")) {
             c.fair_price_seed = fp.at("seed").get<std::uint64_t>();
         }

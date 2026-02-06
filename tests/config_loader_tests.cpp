@@ -3,6 +3,7 @@
 #include "config/config_loader.hpp"
 
 #include <nlohmann/json.hpp>
+#include <variant>
 
 using json = nlohmann::json;
 
@@ -34,6 +35,85 @@ TEST(ConfigLoaderTest, FairPriceConfigMissingFieldThrows) {
     };
 
     EXPECT_THROW(j.get<FairPriceConfig>(), json::out_of_range);
+}
+
+// =============================================================================
+// JumpDiffusionConfig
+// =============================================================================
+
+TEST(ConfigLoaderTest, ParseJumpDiffusionConfig) {
+    json j = {
+        {"initial_price", 1000000},
+        {"drift", 0.0001},
+        {"volatility", 0.005},
+        {"tick_size", 1000},
+        {"jump_intensity", 0.1},
+        {"jump_mean", 0.0},
+        {"jump_std", 0.05}
+    };
+
+    JumpDiffusionConfig config = j.get<JumpDiffusionConfig>();
+
+    EXPECT_EQ(config.initial_price, Price{1000000});
+    EXPECT_DOUBLE_EQ(config.drift, 0.0001);
+    EXPECT_DOUBLE_EQ(config.volatility, 0.005);
+    EXPECT_EQ(config.tick_size, Timestamp{1000});
+    EXPECT_DOUBLE_EQ(config.jump_intensity, 0.1);
+    EXPECT_DOUBLE_EQ(config.jump_mean, 0.0);
+    EXPECT_DOUBLE_EQ(config.jump_std, 0.05);
+}
+
+TEST(ConfigLoaderTest, ParseFairPriceModelConfigGBM) {
+    json j = {
+        {"model", "gbm"},
+        {"initial_price", 1000000},
+        {"drift", 0.0001},
+        {"volatility", 0.005},
+        {"tick_size", 1000}
+    };
+
+    FairPriceModelConfig config = parse_fair_price_config(j);
+
+    ASSERT_TRUE(std::holds_alternative<FairPriceConfig>(config));
+    auto& gbm = std::get<FairPriceConfig>(config);
+    EXPECT_EQ(gbm.initial_price, Price{1000000});
+    EXPECT_DOUBLE_EQ(gbm.volatility, 0.005);
+}
+
+TEST(ConfigLoaderTest, ParseFairPriceModelConfigJumpDiffusion) {
+    json j = {
+        {"model", "jump_diffusion"},
+        {"initial_price", 1000000},
+        {"drift", 0.0001},
+        {"volatility", 0.005},
+        {"tick_size", 1000},
+        {"jump_intensity", 0.2},
+        {"jump_mean", -0.01},
+        {"jump_std", 0.1}
+    };
+
+    FairPriceModelConfig config = parse_fair_price_config(j);
+
+    ASSERT_TRUE(std::holds_alternative<JumpDiffusionConfig>(config));
+    auto& jd = std::get<JumpDiffusionConfig>(config);
+    EXPECT_EQ(jd.initial_price, Price{1000000});
+    EXPECT_DOUBLE_EQ(jd.jump_intensity, 0.2);
+    EXPECT_DOUBLE_EQ(jd.jump_mean, -0.01);
+    EXPECT_DOUBLE_EQ(jd.jump_std, 0.1);
+}
+
+TEST(ConfigLoaderTest, ParseFairPriceModelConfigDefaultsToGBM) {
+    // Without "model" field, should default to GBM
+    json j = {
+        {"initial_price", 1000000},
+        {"drift", 0.0001},
+        {"volatility", 0.005},
+        {"tick_size", 1000}
+    };
+
+    FairPriceModelConfig config = parse_fair_price_config(j);
+
+    ASSERT_TRUE(std::holds_alternative<FairPriceConfig>(config));
 }
 
 // =============================================================================
@@ -318,7 +398,8 @@ TEST(ConfigLoaderTest, ParseFullSimulationConfig) {
     EXPECT_EQ(config.instruments.size(), 2ULL);
     EXPECT_EQ(config.instruments[0], InstrumentID{1});
     EXPECT_EQ(config.instruments[1], InstrumentID{2});
-    EXPECT_EQ(config.fair_price.initial_price, Price{1000000});
+    ASSERT_TRUE(std::holds_alternative<FairPriceConfig>(config.fair_price));
+    EXPECT_EQ(std::get<FairPriceConfig>(config.fair_price).initial_price, Price{1000000});
     EXPECT_EQ(config.fair_price_seed, 43ULL);
 }
 

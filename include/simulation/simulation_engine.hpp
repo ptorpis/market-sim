@@ -10,6 +10,7 @@
 #include <memory>
 #include <optional>
 #include <print>
+#include <type_traits>
 #include <unordered_map>
 
 struct PnL {
@@ -59,8 +60,17 @@ public:
         return ref;
     }
 
-    void set_fair_price(FairPriceConfig config, std::uint64_t seed) {
-        fair_price_ = std::make_unique<FairPriceGenerator>(config, seed);
+    void set_fair_price(const FairPriceModelConfig& config, std::uint64_t seed) {
+        std::visit(
+            [this, seed](const auto& cfg) {
+                using T = std::decay_t<decltype(cfg)>;
+                if constexpr (std::is_same_v<T, FairPriceConfig>) {
+                    fair_price_ = std::make_unique<FairPriceGenerator>(cfg, seed);
+                } else if constexpr (std::is_same_v<T, JumpDiffusionConfig>) {
+                    fair_price_ = std::make_unique<JumpDiffusionFairPriceGenerator>(cfg, seed);
+                }
+            },
+            config);
         fair_price_seed_ = seed;
         if (data_collector_) {
             data_collector_->metadata().set_fair_price(config, seed);

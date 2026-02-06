@@ -45,10 +45,26 @@ inline nlohmann::json to_json(const InformedTraderConfig& c) {
 }
 
 inline nlohmann::json to_json(const FairPriceConfig& c) {
-    return {{"initial_price", c.initial_price.value()},
+    return {{"model", "gbm"},
+            {"initial_price", c.initial_price.value()},
             {"drift", c.drift},
             {"volatility", c.volatility},
             {"tick_size", c.tick_size.value()}};
+}
+
+inline nlohmann::json to_json(const JumpDiffusionConfig& c) {
+    return {{"model", "jump_diffusion"},
+            {"initial_price", c.initial_price.value()},
+            {"drift", c.drift},
+            {"volatility", c.volatility},
+            {"tick_size", c.tick_size.value()},
+            {"jump_intensity", c.jump_intensity},
+            {"jump_mean", c.jump_mean},
+            {"jump_std", c.jump_std}};
+}
+
+inline nlohmann::json to_json(const FairPriceModelConfig& c) {
+    return std::visit([](const auto& config) { return to_json(config); }, c);
 }
 
 class MetadataWriter {
@@ -59,7 +75,7 @@ public:
 
     void add_instrument(InstrumentID id) { instruments_.push_back(id.value()); }
 
-    void set_fair_price(const FairPriceConfig& config, std::uint64_t seed) {
+    void set_fair_price(const FairPriceModelConfig& config, std::uint64_t seed) {
         fair_price_ = to_json(config);
         fair_price_["seed"] = seed;
     }

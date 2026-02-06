@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 /**
@@ -18,6 +19,36 @@ struct FairPriceConfig {
     double volatility;
     Timestamp tick_size;
 };
+
+/**
+ * Configuration for the fair price generator using Merton's Jump Diffusion Model.
+ * Extends GBM with random jumps that arrive according to a Poisson process.
+ * Jump sizes are log-normally distributed.
+ *
+ * Parameters:
+ * - initial_price: Starting price of the asset
+ * - drift: Expected return (mu)
+ * - volatility: Diffusion volatility (sigma)
+ * - tick_size: Time unit for dt calculation
+ * - jump_intensity: Mean number of jumps per tick (lambda)
+ * - jump_mean: Mean of log-jump sizes (mu_J)
+ * - jump_std: Standard deviation of log-jump sizes (sigma_J)
+ */
+struct JumpDiffusionConfig {
+    Price initial_price;
+    double drift;
+    double volatility;
+    Timestamp tick_size;
+    double jump_intensity;
+    double jump_mean;
+    double jump_std;
+};
+
+/**
+ * Variant type for fair price model configuration.
+ * Supports GBM (FairPriceConfig) and Jump Diffusion (JumpDiffusionConfig).
+ */
+using FairPriceModelConfig = std::variant<FairPriceConfig, JumpDiffusionConfig>;
 
 /**
  * Configuration for noise traders that provide random liquidity.
@@ -131,7 +162,7 @@ struct SimulationConfig {
     std::filesystem::path output_dir{"./output"};
     Timestamp pnl_snapshot_interval{100};
     std::vector<InstrumentID> instruments;
-    FairPriceConfig fair_price;
+    FairPriceModelConfig fair_price;
     std::uint64_t fair_price_seed{0};
     std::optional<NoiseTraderGroupConfig> noise_traders;
     std::vector<AgentConfig> agents;

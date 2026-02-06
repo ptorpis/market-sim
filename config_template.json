@@ -9,6 +9,7 @@
     1
   ],
   "fair_price": {
+    "model": "gbm",
     "initial_price": 1000000,
     "drift": 0.0001,
     "volatility": 0.005,
