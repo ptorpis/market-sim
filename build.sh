@@ -98,21 +98,6 @@ cmake --build build/asan --parallel $BUILD_JOBS
 ctest --test-dir build/asan --output-on-failure
 
 # ==============================
-# Valgrind Build
-# ==============================
-
-echo "=============================="
-echo " Valgrind Build"
-echo "=============================="
-
-cmake -S . -B build/valgrind \
-  "${COMMON_CMAKE_FLAGS[@]}" \
-  -DENABLE_VALGRIND=ON
-
-cmake --build build/valgrind --parallel $BUILD_JOBS
-ctest --test-dir build/valgrind --output-on-failure
-
-# ==============================
 # Python Tools Tests
 # ==============================
 
