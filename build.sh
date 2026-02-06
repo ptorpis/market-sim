@@ -116,4 +116,10 @@ pytest tests/python/ -v
 
 python -m tools.testing.harness --build-dir build/debug
 
+echo "=============================="
+echo " Adverse Selection Tests"
+echo "=============================="
+
+pytest tests/test_adverse_selection.py -v
+
 echo -e "\n\033[32m ALL CHECKS PASSED \033[0m\n"

@@ -7,6 +7,7 @@ This document covers the usage of the main components in the market simulator.
 - [MarketSimulator](#marketsimulator)
 - [Visualize Book](#visualize-book)
 - [Visualize Timeseries](#visualize-timeseries)
+- [Analyze Adverse Selection](#analyze-adverse-selection)
 - [Testing](#testing)
   - [Cross-Validation Harness](#cross-validation-harness)
 
@@ -332,6 +333,96 @@ python tools/visualize_timeseries.py output/ --title "My Simulation"
 
 ---
 
+## Analyze Adverse Selection
+
+Measures how the age of a market maker's resting quote relates to the adverse selection experienced when that quote is filled. Tests the stale-quote hypothesis: older quotes that haven't been updated to reflect the latest fair price should suffer worse adverse selection.
+
+The tool reads simulation output files (`trades.csv`, `deltas.csv`, `market_state.csv`, `metadata.json`), identifies fills where the MM was the resting (maker) side, and computes per-fill quote age, immediate adverse selection, and realized adverse selection at configurable future horizons.
+
+### Usage
+
+```bash
+# Basic analysis (auto-detects MM if only one exists)
+python -m tools.analyze_adverse_selection output/
+
+# Specify market maker
+python -m tools.analyze_adverse_selection output/ --mm-id 200
+
+# Show scatter and horizon plots
+python -m tools.analyze_adverse_selection output/ --plot
+
+# Save plot to file
+python -m tools.analyze_adverse_selection output/ --plot --output as_plot.png
+
+# Custom realized AS horizons
+python -m tools.analyze_adverse_selection output/ --horizons 50 100 200 500
+
+# More quote age buckets
+python -m tools.analyze_adverse_selection output/ --buckets 6
+
+# Skip writing per-fill CSV
+python -m tools.analyze_adverse_selection output/ --no-csv
+```
+
+### Arguments
+
+| Argument | Short | Default | Description |
+|----------|-------|---------|-------------|
+| `output_dir` | - | required | Directory containing simulation output files |
+| `--mm-id` | - | auto | Market maker client_id (auto-detected from metadata.json if only one MM) |
+| `--horizons` | - | 50 100 200 500 | Realized AS horizons in ticks |
+| `--buckets` | - | 4 | Number of quote age buckets (quartile-based) |
+| `--plot` | - | - | Show scatter and horizon plots |
+| `--output` | - | - | Save plot to file |
+| `--csv` | - | `OUTPUT_DIR/adverse_selection.csv` | Custom path for per-fill CSV |
+| `--no-csv` | - | - | Skip writing per-fill CSV |
+
+### Key Metrics
+
+| Metric | Formula (MM bought) | Formula (MM sold) |
+|--------|--------------------|--------------------|
+| Quote age | `fill_timestamp - order_birth_timestamp` | same |
+| Immediate AS | `fair_price - fill_price` | `fill_price - fair_price` |
+| Realized AS(h) | `fair_price(t+h) - fill_price` | `fill_price - fair_price(t+h)` |
+
+Negative adverse selection means the price moved against the MM (they overpaid on a buy or sold too cheap). The order birth timestamp resets on MODIFY events, since the MM actively updated the quote.
+
+### Output
+
+**Console summary** — per-bucket table showing fill count, mean/median immediate AS, realized AS at a representative horizon, and percentage of fills against informed traders.
+
+**Per-fill CSV** (`adverse_selection.csv`) — one row per MM maker fill with columns: `fill_timestamp`, `trade_id`, `mm_order_id`, `mm_side`, `quote_age`, `fill_price`, `fair_price`, `immediate_as`, `realized_as_<horizon>` (one per horizon), `counterparty_id`, `counterparty_type`.
+
+**Plots** (with `--plot`):
+1. Scatter of immediate AS vs quote age, colored by counterparty type, with binned means overlay
+2. Line plot of realized AS at multiple horizons vs quote age
+
+### Example
+
+```bash
+# Run simulation then analyze
+./build/debug/MarketSimulator
+python -m tools.analyze_adverse_selection output/ --plot
+```
+
+```
+Adverse Selection Analysis (MM client_id=10)
+============================================================
+Total MM fills: 1103 (maker only)
+  vs InformedTrader: 15 (1.4%)
+  vs NoiseTrader: 1088 (98.6%)
+
+By Quote Age:
+  Bucket         | Count | Mean Imm. AS | Med Imm. AS |  Mean AS@200 | % Informed
+  -------------------------------------------------------------------------------
+  [0, 12)        |   263 |        -80.6 |       -41.0 |       -381.1 |       2.7%
+  [12, 31)       |   278 |       -639.7 |      -419.0 |       -719.3 |       2.2%
+  [31, 62)       |   284 |       -851.2 |      -590.0 |       -775.7 |       0.7%
+  [62, inf)      |   278 |      -1835.4 |      -992.5 |      -3659.0 |       0.0%
+```
+
+---
+
 ## Testing
 
 The project uses Google Test (C++) and pytest (Python).
@@ -353,10 +444,10 @@ ctest --test-dir build/debug --output-on-failure
 
 ```bash
 # Run all C++ tests
-./build/debug/all_tests
+./build/debug/unit_tests
 
 # Run specific test
-./build/debug/all_tests --gtest_filter="MatchingEngine*"
+./build/debug/unit_tests --gtest_filter="MatchingEngine*"
 ```
 
 ### Python Tests
@@ -364,6 +455,9 @@ ctest --test-dir build/debug --output-on-failure
 ```bash
 # Run visualization tool tests
 pytest tests/test_visualize_book.py -v
+
+# Run adverse selection cross-validation tests
+pytest tests/test_adverse_selection.py -v
 
 # Run cross-validation infrastructure tests
 pytest tests/python/ -v
@@ -457,6 +551,9 @@ python tools/visualize_book.py output/deltas.csv -i
 # 4. Analyze price discovery
 python tools/visualize_timeseries.py output/ --analysis
 
-# 5. Run tests
+# 5. Analyze adverse selection
+python -m tools.analyze_adverse_selection output/ --plot
+
+# 6. Run tests
 ./build.sh --debug
 ```

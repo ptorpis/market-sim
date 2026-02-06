@@ -166,7 +166,7 @@ if(BUILD_TESTS)
     enable_testing()
     find_package(GTest REQUIRED)
 
-    add_executable(all_tests
+    add_executable(unit_tests
         tests/matching_engine_tests.cpp
         tests/scheduler_tests.cpp
         tests/simulation_engine_tests.cpp
@@ -180,7 +180,7 @@ if(BUILD_TESTS)
         tests/informed_trader_tests.cpp
     )
 
-    target_link_libraries(all_tests
+    target_link_libraries(unit_tests
         PRIVATE SimCore
         GTest::gtest
         GTest::gtest_main
@@ -188,6 +188,7 @@ if(BUILD_TESTS)
 
     add_executable(cross_validation_tests
         tests/cross_validation_tests.cpp
+        tests/adverse_selection_scenario_tests.cpp
     )
 
     target_link_libraries(cross_validation_tests
@@ -201,17 +202,17 @@ if(BUILD_TESTS)
     if(ENABLE_VALGRIND)
 
         add_test(
-            NAME all_tests_memcheck
+            NAME unit_tests_memcheck
             COMMAND valgrind
                 --leak-check=full
                 --error-exitcode=1
                 --track-origins=yes
-                $<TARGET_FILE:all_tests>
+                $<TARGET_FILE:unit_tests>
         )
 
     else()
 
-        gtest_discover_tests(all_tests)
+        gtest_discover_tests(unit_tests)
         gtest_discover_tests(cross_validation_tests)
 
     endif()

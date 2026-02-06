@@ -104,7 +104,7 @@ cmake --build build/debug --parallel 4
 ctest --test-dir build/debug --output-on-failure
 
 # Run specific test suite
-./build/debug/all_tests --gtest_filter="MatchingEngine*"
+./build/debug/unit_tests --gtest_filter="MatchingEngine*"
 ```
 
 **Build variants:**
