@@ -336,7 +336,7 @@ TEST_F(CrossValidationTest, Pnl_NetPositionsSumToZero) {
     harness.run_with_state_export(Timestamp{300});
 
     // Net positions should sum to zero
-    std::int64_t total_net = 0;
+    Cash total_net = Cash{0};
     for (const auto& [client_id, pnl] : harness.engine().all_pnl()) {
         total_net += pnl.net_position();
     }

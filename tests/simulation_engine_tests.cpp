@@ -660,7 +660,7 @@ TEST_F(PnLTest, NetPositionSumsToZeroAcrossAllParticipants) {
 
     engine->run_until(Timestamp{300});
 
-    std::int64_t total_position = 0;
+    Cash total_position = Cash{0};
     for (const auto& [client_id, pnl] : engine->all_pnl()) {
         total_position += pnl.net_position();
     }

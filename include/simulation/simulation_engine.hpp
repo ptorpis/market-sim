@@ -4,6 +4,7 @@
 #include "persistence/data_collector.hpp"
 #include "simulation/agent.hpp"
 #include "simulation/fair_price.hpp"
+#include "simulation/pnl.hpp"
 #include "simulation/scheduler.hpp"
 
 #include <cmath>
@@ -14,25 +15,6 @@
 #include <random>
 #include <type_traits>
 #include <unordered_map>
-
-struct PnL {
-    Quantity long_position{0};
-    Quantity short_position{0};
-    Cash cash{0}; // Positive = received, negative = spent
-
-    [[nodiscard]] std::int64_t net_position() const {
-        return static_cast<std::int64_t>(long_position.value()) -
-               static_cast<std::int64_t>(short_position.value());
-    }
-
-    [[nodiscard]] std::int64_t unrealized_pnl(Price mark_price) const {
-        return net_position() * static_cast<std::int64_t>(mark_price.value());
-    }
-
-    [[nodiscard]] std::int64_t total_pnl(Price mark_price) const {
-        return cash.value() + unrealized_pnl(mark_price);
-    }
-};
 
 /**
  * Main simulation orchestrator implementing the shared AgentContext.

@@ -30,91 +30,91 @@ template <typename Base, typename Tag> struct StrongType {
     using tag_type = Tag;
 
 public:
-    explicit StrongType(Base value) noexcept : data_m(value) {}
+    explicit StrongType(Base value) noexcept : data_(value) {}
 
-    [[nodiscard]] constexpr auto value() const noexcept { return data_m; }
+    [[nodiscard]] constexpr auto value() const noexcept { return data_; }
     // explicit conversion to underlying (using static_cast)
-    explicit constexpr operator Base() const noexcept { return data_m; }
+    explicit constexpr operator Base() const noexcept { return data_; }
 
     friend std::ostream& operator<<(std::ostream& os, const StrongType& st) {
-        return os << st.data_m;
+        return os << st.data_;
     }
 
-    constexpr StrongType() noexcept : data_m{} {}
+    constexpr StrongType() noexcept : data_{} {}
 
     constexpr auto operator<=>(const StrongType&) const noexcept = default;
-    constexpr auto operator<=>(Base other) const noexcept { return data_m <=> other; }
-    constexpr bool operator==(Base other) const noexcept { return data_m == other; }
-    constexpr bool operator!() const noexcept { return data_m == 0; }
+    constexpr auto operator<=>(Base other) const noexcept { return data_ <=> other; }
+    constexpr bool operator==(Base other) const noexcept { return data_ == other; }
+    constexpr bool operator!() const noexcept { return data_ == 0; }
     constexpr bool operator==(const StrongType& other) const noexcept {
-        return other.data_m == data_m;
+        return other.data_ == data_;
     }
     constexpr bool operator!=(const StrongType& other) const noexcept {
-        return other.data_m != data_m;
+        return other.data_ != data_;
     }
 
     constexpr Tag operator+(const Tag& other) const noexcept {
-        return Tag{data_m + other.data_m};
+        return Tag{data_ + other.data_};
     }
 
     constexpr Tag operator-(const Tag& other) const noexcept {
-        return Tag{data_m - other.data_m};
+        return Tag{data_ - other.data_};
     }
 
     constexpr Tag operator*(const Tag& other) const noexcept {
-        return Tag{data_m * other.data_m};
+        return Tag{data_ * other.data_};
     }
 
     constexpr Tag operator/(const Tag& other) const noexcept {
-        return Tag{data_m / other.data_m};
+        return Tag{data_ / other.data_};
     }
 
     constexpr Tag& operator+=(const Tag& other) noexcept {
-        data_m += other.data_m;
+        data_ += other.data_;
         return static_cast<Tag&>(*this);
     }
 
     constexpr Tag& operator-=(const Tag& other) noexcept {
-        data_m -= other.data_m;
+        data_ -= other.data_;
         return static_cast<Tag&>(*this);
     }
 
     constexpr Tag& operator+=(Base value) noexcept {
-        data_m += value;
+        data_ += value;
         return static_cast<Tag&>(*this);
     }
 
     constexpr Tag& operator-=(Base value) noexcept {
-        data_m -= value;
+        data_ -= value;
         return static_cast<Tag&>(*this);
     }
 
     constexpr Tag& operator++() noexcept {
-        ++data_m;
+        ++data_;
         return static_cast<Tag&>(*this);
     }
 
     constexpr Tag operator++(int) noexcept {
         Tag temp = static_cast<Tag&>(*this);
-        ++data_m;
+        ++data_;
         return temp;
     }
 
     constexpr Tag& operator--() noexcept {
-        --data_m;
+        --data_;
         return static_cast<Tag&>(*this);
     }
 
     constexpr Tag operator--(int) noexcept {
         Tag temp = static_cast<Tag&>(*this);
-        --data_m;
+        --data_;
         return temp;
     }
 
-    [[nodiscard]] constexpr bool is_zero() const noexcept { return data_m == 0; };
+    [[nodiscard]] constexpr bool is_zero() const noexcept { return data_ == 0; };
 
 protected:
-    Base data_m;
+    Base data_;
 };
 
 // Concept to identify StrongType derivatives (checks for tag_type which is unique to
