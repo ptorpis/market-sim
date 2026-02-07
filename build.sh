@@ -6,6 +6,8 @@ set -e
 # ==============================
 
 DEBUG_ONLY=false
+TOOLCHAIN=""
+RUN_VALGRIND=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -13,10 +15,25 @@ while [[ $# -gt 0 ]]; do
             DEBUG_ONLY=true
             shift
             ;;
+        --gcc)
+            [ -n "$TOOLCHAIN" ] && TOOLCHAIN=both || TOOLCHAIN=gcc
+            shift
+            ;;
+        --clang)
+            [ -n "$TOOLCHAIN" ] && TOOLCHAIN=both || TOOLCHAIN=clang
+            shift
+            ;;
+        --valgrind)
+            RUN_VALGRIND=true
+            shift
+            ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
+            echo "  --gcc      Use GCC toolchain (g++)"
+            echo "  --clang    Use Clang toolchain (clang++)"
+            echo "  --valgrind Include Valgrind memcheck build and test"
             echo "  --debug    Only build and test the debug configuration"
             echo "  -h, --help Show this help message"
             exit 0
@@ -28,6 +45,18 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+if [ -z "$TOOLCHAIN" ]; then
+    echo "ERROR: must specify --gcc or --clang"
+    echo "Use --help for usage information"
+    exit 1
+fi
+
+if [ "$TOOLCHAIN" = "both" ]; then
+    echo "ERROR: cannot specify both --gcc and --clang"
+    echo "Use --help for usage information"
+    exit 1
+fi
 
 # ==============================
 # Build configuration
@@ -46,12 +75,19 @@ echo "Using $BUILD_JOBS parallel build jobs"
 # Toolchain selection
 # ==============================
 
-C_COMPILER=clang-18
-CXX_COMPILER=clang++-18
+GCC_INSTALL_DIR=$(g++ -print-search-dirs | head -1 | sed 's/install: //')
+
+if [ "$TOOLCHAIN" = "gcc" ]; then
+    C_COMPILER=gcc
+    CXX_COMPILER=g++
+else
+    C_COMPILER=clang
+    CXX_COMPILER=clang++
+fi
 
 # Verify compiler exists
 if ! command -v $CXX_COMPILER >/dev/null 2>&1; then
-    echo "ERROR: clang-18 not found"
+    echo "ERROR: $CXX_COMPILER not found"
     exit 1
 fi
 
@@ -63,6 +99,13 @@ COMMON_CMAKE_FLAGS=(
   -DCMAKE_CXX_COMPILER=$CXX_COMPILER
   -DCMAKE_BUILD_TYPE=Debug
 )
+
+if [ "$TOOLCHAIN" = "clang" ]; then
+    COMMON_CMAKE_FLAGS+=(
+      -DCMAKE_CXX_FLAGS="--gcc-install-dir=$GCC_INSTALL_DIR"
+      -DCMAKE_EXE_LINKER_FLAGS="--gcc-install-dir=$GCC_INSTALL_DIR"
+    )
+fi
 
 # ==============================
 # Normal Debug Build + Tests
@@ -96,6 +139,23 @@ cmake -S . -B build/asan \
 
 cmake --build build/asan --parallel $BUILD_JOBS
 ctest --test-dir build/asan --output-on-failure
+
+# ==============================
+# Valgrind Build + Tests
+# ==============================
+
+if [ "$RUN_VALGRIND" = true ]; then
+    echo "=============================="
+    echo " Valgrind Build + Tests"
+    echo "=============================="
+
+    cmake -S . -B build/valgrind \
+      "${COMMON_CMAKE_FLAGS[@]}" \
+      -DENABLE_VALGRIND=ON
+
+    cmake --build build/valgrind --parallel $BUILD_JOBS
+    ctest --test-dir build/valgrind --output-on-failure
+fi
 
 # ==============================
 # Python Tools Tests

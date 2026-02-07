@@ -9,12 +9,15 @@
     1
   ],
   "fair_price": {
-    "model": "gbm",
+    "model": "jump_diffusion",
     "initial_price": 1000000,
     "drift": 0.0001,
     "volatility": 0.005,
     "tick_size": 1000,
-    "seed": 43
+    "jump_intensity": 0.1,
+    "jump_mean": 0.0,
+    "jump_std": 0.05,
+    "seed": 1
   },
   "noise_traders": {
     "count": 5,
