@@ -1,0 +1,3 @@
+# Discrete Time Agent-based Market Simulator
+
+Readme needed...
