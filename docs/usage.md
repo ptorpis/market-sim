@@ -120,7 +120,7 @@ Each agent type config supports a `latency_jitter` parameter that adds realistic
 
 When `latency_jitter` is set to a value greater than 0, each action's latency is sampled from:
 
-$$\text{latency} \sim \text{LogNormal}(\ln(\text{base\_latency}),\; \sigma)$$
+$$\text{latency} \sim \text{LogNormal}(\ln(\text{base latency}),\; \sigma)$$
 
 Where `base_latency` is the agent's configured latency (or the global default) and $\sigma$ is the `latency_jitter` value. The median of the distribution equals the base latency, so the jitter adds noise around it with occasional high-latency spikes. Each agent's jitter RNG is seeded from its own seed for reproducibility.
 
