@@ -8,6 +8,7 @@ set -e
 DEBUG_ONLY=false
 TOOLCHAIN=""
 RUN_VALGRIND=false
+RELEASE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -27,6 +28,10 @@ while [[ $# -gt 0 ]]; do
             RUN_VALGRIND=true
             shift
             ;;
+        --release)
+            RELEASE=true
+            shift
+            ;;
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
@@ -34,6 +39,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --gcc      Use GCC toolchain (g++)"
             echo "  --clang    Use Clang toolchain (clang++)"
             echo "  --valgrind Include Valgrind memcheck build and test"
+            echo "  --release  Also build an optimized release binary (build/release)"
             echo "  --debug    Only build and test the debug configuration"
             echo "  -h, --help Show this help message"
             exit 0
@@ -97,7 +103,6 @@ $CXX_COMPILER --version
 COMMON_CMAKE_FLAGS=(
   -DCMAKE_C_COMPILER=$C_COMPILER
   -DCMAKE_CXX_COMPILER=$CXX_COMPILER
-  -DCMAKE_BUILD_TYPE=Debug
 )
 
 if [ "$TOOLCHAIN" = "clang" ]; then
@@ -115,7 +120,7 @@ echo "=============================="
 echo " Normal Debug Build + Tests"
 echo "=============================="
 
-cmake -S . -B build/debug "${COMMON_CMAKE_FLAGS[@]}"
+cmake -S . -B build/debug "${COMMON_CMAKE_FLAGS[@]}" -DCMAKE_BUILD_TYPE=Debug
 cmake --build build/debug --parallel $BUILD_JOBS
 ctest --test-dir build/debug --output-on-failure
 
@@ -134,6 +139,7 @@ echo "=============================="
 
 cmake -S . -B build/asan \
   "${COMMON_CMAKE_FLAGS[@]}" \
+  -DCMAKE_BUILD_TYPE=Debug \
   -DENABLE_ASAN=ON \
   -DENABLE_UBSAN=ON
 
@@ -151,10 +157,28 @@ if [ "$RUN_VALGRIND" = true ]; then
 
     cmake -S . -B build/valgrind \
       "${COMMON_CMAKE_FLAGS[@]}" \
+      -DCMAKE_BUILD_TYPE=Debug \
       -DENABLE_VALGRIND=ON
 
     cmake --build build/valgrind --parallel $BUILD_JOBS
     ctest --test-dir build/valgrind --output-on-failure
+fi
+
+# ==============================
+# Release Build + Tests
+# ==============================
+
+if [ "$RELEASE" = true ]; then
+    echo "=============================="
+    echo " Release Build + Tests"
+    echo "=============================="
+
+    cmake -S . -B build/release \
+      "${COMMON_CMAKE_FLAGS[@]}" \
+      -DCMAKE_BUILD_TYPE=Release
+
+    cmake --build build/release --parallel $BUILD_JOBS
+    ctest --test-dir build/release --output-on-failure
 fi
 
 # ==============================
