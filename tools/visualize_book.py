@@ -11,6 +11,8 @@ Usage:
     python visualize_book.py deltas.csv --at 1000          # Show state at timestamp 1000
     python visualize_book.py deltas.csv -i                 # Interactive mode
     python visualize_book.py deltas.csv --plot             # Show depth chart
+    python visualize_book.py deltas.csv --animate          # Animate over time
+    python visualize_book.py deltas.csv --animate-output book.mp4  # Save animation
 
 Architecture:
     The tool uses a streaming approach to handle large delta files efficiently:
@@ -44,13 +46,68 @@ Complexity:
 
 import argparse
 import csv
+from dataclasses import dataclass
 from typing import Optional
 
 
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import matplotlib.ticker as mticker
+import seaborn as sns
 
 
 from tools.visualizer.order_book import Side, OrderBook
+
+
+@dataclass
+class _FrameData:
+    """Lightweight snapshot of order book state for one animation frame."""
+
+    timestamp: int
+    # Depth chart (cumulative, ready to pass straight to ax.step / fill_between)
+    bid_prices: list[int]
+    bid_cum: list[int]
+    ask_prices: list[int]
+    ask_cum: list[int]
+    # Tower chart (per-level, limited to top N levels around the spread)
+    tower_prices: list[int]
+    tower_bid_qtys: list[int]
+    tower_ask_qtys: list[int]
+
+
+def _build_frame(book: OrderBook, ts: int, tower_levels: int) -> _FrameData:
+    """Extract the minimal drawing data from the current book state."""
+    bid_levels, ask_levels = book.get_full_depth()
+
+    bid_prices = [p for p, _ in reversed(bid_levels)]
+    bid_cum: list[int] = []
+    total = 0
+    for _, qty in reversed(bid_levels):
+        total += qty
+        bid_cum.append(total)
+    bid_cum = list(reversed(bid_cum))
+
+    ask_prices = [p for p, _ in ask_levels]
+    ask_cum: list[int] = []
+    total = 0
+    for _, qty in ask_levels:
+        total += qty
+        ask_cum.append(total)
+
+    top_bids = dict(bid_levels[:tower_levels])
+    top_asks = dict(ask_levels[:tower_levels])
+    tower_prices = sorted(top_bids.keys() | top_asks.keys())
+
+    return _FrameData(
+        timestamp=ts,
+        bid_prices=bid_prices,
+        bid_cum=bid_cum,
+        ask_prices=ask_prices,
+        ask_cum=ask_cum,
+        tower_prices=tower_prices,
+        tower_bid_qtys=[top_bids.get(p, 0) for p in tower_prices],
+        tower_ask_qtys=[top_asks.get(p, 0) for p in tower_prices],
+    )
 
 
 def read_deltas(path: str):
@@ -365,6 +422,107 @@ def plot_depth(book: OrderBook, output_path: Optional[str] = None) -> None:
         plt.show()
 
 
+def animate_book(
+    deltas_path: str,
+    output_path: Optional[str] = None,
+    interval: int = 50,
+    step: int = 1,
+    tower_levels: int = 15,
+) -> None:
+    """
+    Animate the order book depth and tower charts over time.
+
+    Pre-renders all frames into lightweight data snapshots in a single O(N)
+    forward pass, then drives FuncAnimation from that list — no delta replay
+    or heavy computation during drawing.
+
+    Args:
+        deltas_path: Path to deltas.csv.
+        output_path: Save to file (mp4/gif) instead of showing interactively.
+        interval: Milliseconds between frames.
+        step: Sample every Nth timestamp (higher = fewer frames, faster export).
+        tower_levels: Max price levels shown per side in the tower chart.
+    """
+    sns.set_theme(style="darkgrid")
+    bid_color = sns.color_palette("deep")[2]
+    ask_color = sns.color_palette("deep")[3]
+
+    print("Building index...")
+    index = DeltaIndex(deltas_path)
+    if len(index) == 0:
+        print("No deltas found in file.")
+        return
+
+    # --- Pre-render phase: single O(N) forward pass ---
+    n_ts = len(index)
+    print(f"Pre-rendering {n_ts} timestamps (sampling every {step})...")
+    frames: list[_FrameData] = []
+    book = OrderBook()
+    report_every = max(1, n_ts // 20)
+    for i in range(n_ts):
+        for delta in index.read_deltas_at_index(i):
+            book.apply_delta(delta)
+        if i % step == 0 or i == n_ts - 1:
+            frames.append(_build_frame(book, index.timestamps[i], tower_levels))
+        if (i + 1) % report_every == 0:
+            print(f"  {100 * (i + 1) // n_ts}%", end="\r", flush=True)
+    del book  # no longer needed; only the frame snapshots remain in memory
+    print(f"Pre-rendered {len(frames)} frames.          ")
+
+    # --- Render phase: pure matplotlib, zero computation per frame ---
+    n_frames = len(frames)
+    fig, (ax_depth, ax_tower) = plt.subplots(1, 2, figsize=(18, 7))
+    title = fig.suptitle("", fontsize=13)
+    plt.tight_layout(rect=(0, 0, 1, 0.95))
+
+    def update(frame_idx: int) -> None:
+        fd = frames[frame_idx]
+
+        ax_depth.cla()
+        if fd.bid_prices:
+            ax_depth.fill_between(fd.bid_prices, fd.bid_cum, step="post", alpha=0.35, color=bid_color)
+            ax_depth.step(fd.bid_prices, fd.bid_cum, where="post", color=bid_color, label="Bids", linewidth=1.5)
+        if fd.ask_prices:
+            ax_depth.fill_between(fd.ask_prices, fd.ask_cum, step="post", alpha=0.35, color=ask_color)
+            ax_depth.step(fd.ask_prices, fd.ask_cum, where="post", color=ask_color, label="Asks", linewidth=1.5)
+        ax_depth.set_xlabel("Price")
+        ax_depth.set_ylabel("Cumulative Quantity")
+        ax_depth.set_title("Cumulative Depth")
+        ax_depth.legend()
+
+        ax_tower.cla()
+        if fd.tower_prices:
+            y_pos = list(range(len(fd.tower_prices)))
+            ax_tower.barh(y_pos, [-q for q in fd.tower_bid_qtys], height=0.6, color=bid_color, alpha=0.7, label="Bids")
+            ax_tower.barh(y_pos, fd.tower_ask_qtys, height=0.6, color=ask_color, alpha=0.7, label="Asks")
+            ax_tower.set_yticks(y_pos)
+            ax_tower.set_yticklabels(fd.tower_prices, fontsize=8)
+            ax_tower.axvline(0, color="white", linewidth=0.8)
+            x_max = max(max(fd.tower_bid_qtys, default=0), max(fd.tower_ask_qtys, default=0), 1)
+            ax_tower.set_xlim(-x_max * 1.1, x_max * 1.1)
+            ax_tower.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: str(int(abs(x)))))
+            ax_tower.legend()
+        ax_tower.set_xlabel("Quantity")
+        ax_tower.set_ylabel("Price")
+        ax_tower.set_title("Quantity at Each Level")
+
+        title.set_text(f"Order Book — Timestamp {fd.timestamp}  [{frame_idx + 1}/{n_frames}]")
+
+    anim = animation.FuncAnimation(fig, update, frames=n_frames, interval=interval, repeat=False)
+
+    if output_path:
+        print(f"Saving to {output_path} ...")
+        fps = max(1, 1000 // interval)
+        try:
+            anim.save(output_path, writer=animation.FFMpegWriter(fps=fps))
+        except FileNotFoundError:
+            print("ffmpeg not found, falling back to PillowWriter (slower for large files)")
+            anim.save(output_path, writer=animation.PillowWriter(fps=fps))
+        print(f"Saved to {output_path}")
+    else:
+        plt.show()
+
+
 def parse_levels(value: str) -> int | None:
     """Parse the --levels argument, accepting either an integer or 'max'."""
     if value.lower() == "max":
@@ -411,10 +569,49 @@ def main() -> None:
         default=10,
         help="Number of price levels to show (default: 10, use 'max' for all)",
     )
+    parser.add_argument(
+        "--animate",
+        action="store_true",
+        help="Animate the order book over time",
+    )
+    parser.add_argument(
+        "--animate-output",
+        metavar="PATH",
+        help="Save animation to file (e.g. book.mp4 or book.gif) instead of showing",
+    )
+    parser.add_argument(
+        "--animate-interval",
+        type=int,
+        default=50,
+        metavar="MS",
+        help="Milliseconds between animation frames (default: 50)",
+    )
+    parser.add_argument(
+        "--animate-step",
+        type=int,
+        default=1,
+        metavar="N",
+        help="Sample every Nth timestamp (default: 1)",
+    )
+    parser.add_argument(
+        "--animate-levels",
+        type=int,
+        default=15,
+        metavar="N",
+        help="Max price levels per side shown in the tower chart (default: 15)",
+    )
 
     args = parser.parse_args()
 
-    if args.interactive:
+    if args.animate or args.animate_output:
+        animate_book(
+            args.deltas_file,
+            output_path=args.animate_output,
+            interval=args.animate_interval,
+            step=args.animate_step,
+            tower_levels=args.animate_levels,
+        )
+    elif args.interactive:
         interactive_mode(args.deltas_file, args.levels)
     elif args.at is not None:
         book = reconstruct_at(args.deltas_file, args.at)

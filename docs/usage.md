@@ -254,6 +254,22 @@ python tools/visualize_book.py output/deltas.csv --plot-output depth.png
 # Control price levels displayed (default: 10)
 python tools/visualize_book.py output/deltas.csv --levels 5
 python tools/visualize_book.py output/deltas.csv --levels max
+
+# Animate the order book over time
+python tools/visualize_book.py output/deltas.csv --animate
+
+# Save animation to file (requires ffmpeg for mp4; falls back to Pillow for gif)
+python tools/visualize_book.py output/deltas.csv --animate-output book.mp4
+python tools/visualize_book.py output/deltas.csv --animate-output book.gif
+
+# Speed up by sampling every Nth timestamp (useful for large files)
+python tools/visualize_book.py output/deltas.csv --animate --animate-step 5
+
+# Slow down or speed up frame rate (default: 50 ms per frame)
+python tools/visualize_book.py output/deltas.csv --animate --animate-interval 100
+
+# Limit the number of price levels shown in the tower chart (default: 15)
+python tools/visualize_book.py output/deltas.csv --animate --animate-levels 10
 ```
 
 ### Arguments
@@ -266,6 +282,20 @@ python tools/visualize_book.py output/deltas.csv --levels max
 | `--plot` | - | - | Show depth chart |
 | `--plot-output` | - | - | Save depth chart to file |
 | `--levels` | - | 10 | Number of price levels (or 'max') |
+| `--animate` | - | - | Animate the order book over time |
+| `--animate-output` | - | - | Save animation to file (mp4 or gif) instead of showing |
+| `--animate-interval` | - | 50 | Milliseconds between animation frames |
+| `--animate-step` | - | 1 | Sample every Nth timestamp (higher = fewer frames) |
+| `--animate-levels` | - | 15 | Max price levels per side in the tower chart |
+
+### Animation Mode
+
+Animation mode pre-renders all frames in a single O(N) forward pass, then plays them back with `matplotlib.animation.FuncAnimation`. Two panels are shown side by side:
+
+- **Cumulative depth chart** (left) — step-function plot of bids (green) and asks (red) as a function of price, showing how liquidity accumulates away from the spread.
+- **Tower chart** (right) — horizontal bar chart of quantity at each individual price level around the spread, with bids extending left and asks extending right.
+
+The title shows the current timestamp and frame index. When saving to file, ffmpeg is used for mp4/avi output and Pillow is used as a fallback for gif.
 
 ### Interactive Commands
 
