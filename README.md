@@ -1,7 +1,80 @@
-# Discrete Time Agent-based Market Simulator
+# Market Microstructure Simulator
 
+A discrete-time, event-driven market microstructure simulation framework written in modern C++23. Designed for studying price discovery, adverse selection, and agent behaviour in an artificial limit order book market.
 
-Interactive CLI that can replay the order book from log files, step forward and back, seek to arbitrary timestamp, and list orders at desired levels.
+---
+
+## Overview
+
+The simulator models a continuous-time limit order book driven by heterogeneous trading agents. A matching engine processes order flow, agents react to fills and market state, and the resulting tick data is logged for post-hoc analysis with Python tools.
+
+The core design priorities are correctness, reproducibility, and extensibility. Performance is secondary to clarity.
+
+**Agent types:**
+
+| Agent | Behaviour |
+|-------|-----------|
+| `NoiseTrader` | Submits random buy/sell orders, providing uninformed order flow |
+| `MarketMaker` | Quotes both sides around fair price; adjusts quotes for inventory risk |
+| `InformedTrader` | Trades directionally when estimated edge exceeds a configurable threshold |
+
+**Fair price models:**
+
+| Model | Description |
+|-------|-------------|
+| Geometric Brownian Motion | Standard diffusion with constant drift and volatility |
+| Jump Diffusion (Merton) | GBM extended with a Poisson jump process for studying adverse selection under sudden price movements |
+
+---
+
+## Architecture
+
+```
+SimulationEngine (orchestrator)
+├── Scheduler          priority queue of timestamped events
+├── MatchingEngine     per-instrument order book and fill logic
+├── FairPriceGenerator GBM or jump-diffusion price process
+├── Agents             NoiseTrader, MarketMaker, InformedTrader
+└── DataCollector      CSV output for all events
+```
+
+Events are dispatched via `std::visit` over a `std::variant` event type. Agents submit orders through an `AgentContext` interface and receive callbacks on fills, acceptances, rejections, and cancellations. The scheduler orders events by `(timestamp, sequence_number)` to resolve ties deterministically.
+
+**Key design patterns:**
+- Policy-based design for the matching engine (template parameters control matching behaviour)
+- CRTP-based strong type system — all prices, quantities, IDs, and timestamps are distinct named types
+- Visitor pattern for event dispatch
+- Observer pattern for agent callbacks
+
+---
+
+## Technical Highlights
+
+- **C++23** throughout, compiled with strict warnings treated as errors (`-Werror`)
+- **Strong type system** — `Price`, `Quantity`, `OrderID`, `ClientID`, `Timestamp`, etc. are all distinct types with no implicit conversions; raw integers are never used in the simulation layer
+- **Reproducibility** — every agent and the fair price process accept seeds; identical configs produce identical results
+- **Log-normal latency jitter** — each agent's order-to-exchange latency is sampled from a log-normal distribution parameterised around a base latency, producing realistic latency variability
+- **Cross-validation harness** — a Python replay engine independently reconstructs order book state from logged deltas and compares it against C++ exported state, catching any divergence between the two implementations
+- **Three build variants** — debug, AddressSanitizer + UndefinedBehaviorSanitizer, and Valgrind
+
+---
+
+## Output and Analysis
+
+The simulator writes structured CSV output for all events:
+
+| File | Contents |
+|------|----------|
+| `deltas.csv` | Order book change events: ADD, FILL, CANCEL, MODIFY |
+| `trades.csv` | All executed trades |
+| `pnl.csv` | Periodic P&L snapshots per agent |
+| `market_state.csv` | Fair price, best bid, best ask at each timestamp |
+| `metadata.json` | Full simulation configuration |
+
+### Order Book Visualizer
+
+Reconstructs and navigates order book state at any timestamp by replaying delta events. Supports static snapshots, depth charts, and frame-by-frame animation exported to mp4 or gif.
+
 ```
 > h
 Commands:
@@ -13,44 +86,123 @@ Commands:
   t                    - Inspect the top of the book
   d <num|max>          - Set number of levels to display
   q                    - Quit
-  h                    - Print commands available
 
 ===============================================
  ORDER BOOK at timestamp 999621
 ===============================================
  Midpoint: 493306.5  Spread: 22611
 
-     BID (Qty @ Price) | ASK (Qty @ Price)     
+     BID (Qty @ Price) | ASK (Qty @ Price)
 -----------------------+-----------------------
-           23 @ 482001 | 2 @ 504612            
-           50 @ 481848 |                       
-           65 @ 481458 |                       
-           69 @ 481271 |                       
+           23 @ 482001 | 2 @ 504612
+           50 @ 481848 |
+           65 @ 481458 |
+           69 @ 481271 |
 
 [70211/70233] Timestamp: 999621
-> 
+>
 ```
 
-The CLI allows the user to read the artifacts produced by the simulation, and explore tick by tick.
+![Order book depth chart](docs/example_ob_plot.png)
 
-Visualization (very crude and basic):
+### Timeseries Analysis
 
-![example ob plot](docs/example_ob_plot.png)
+Plots spread, midpoint, fair price, and pricing error over time to evaluate price discovery quality.
 
-This plot shows the cumulative quantity of orders in the order book at a specific timestamp.
+![Timeseries plot](docs/basic_timeseries_plot.png)
 
-![example timeseries plot](docs/basic_timeseries_plot.png)
+### Adverse Selection Analysis
 
-This plot shows a sampled timeseries from the simulation, displaying the spread and the pricing errors over time.
+Measures how quote age at the time of fill correlates with adverse selection experienced by the market maker. Tests the stale-quote hypothesis: resting quotes that lag the fair price should suffer systematically worse outcomes.
 
-Note that the simulation parameters have not been optimized to produce good results, the project is in a very early stage at this point. As a next step, I will try to replicate a Glosten-Milgrom style market maker and see if the simulation produces results predicted by their framework under their conditions and assumptions.
+```
+Adverse Selection Analysis (MM client_id=10)
+============================================================
+Total MM fills: 1103 (maker only)
+  vs InformedTrader: 15 (1.4%)
+  vs NoiseTrader: 1088 (98.6%)
 
-## Building and testing the project
+By Quote Age:
+  Bucket         | Count | Mean Imm. AS | Med Imm. AS |  Mean AS@200 | % Informed
+  -------------------------------------------------------------------------------
+  [0, 12)        |   263 |        -80.6 |       -41.0 |       -381.1 |       2.7%
+  [12, 31)       |   278 |       -639.7 |      -419.0 |       -719.3 |       2.2%
+  [31, 62)       |   284 |       -851.2 |      -590.0 |       -775.7 |       0.7%
+  [62, inf)      |   278 |      -1835.4 |      -992.5 |      -3659.0 |       0.0%
+```
 
-As this project is still in its early stages, the build and use process is not very streamlined. To run everything, install the Python dependencies from the pyproject.toml file. There is a build and test script that uses either g++ or clang to build from the source, then run the unit and integration tests. (tip: pass the flag ``--debug`` to only build the project in debug, skip UB and ASAN, not really needed for basic usage).
+---
 
-All of the analysis tools are found in the `tools/` directory, passing -h for all of them will give usage instructions (same for the simulator).
+## Quick Start
 
-The simulator can be configured using the JSON file, to make changes to the config, copy the template (config_template.json) and rename the copy to `config.json`, the simulator will use this as a default with a fallback to the template. There is also a usage.md file found in `docs/`
+**Requirements:** CMake 3.28+, g++15 or clang++-18, Python 3, pytest
 
-Requires a working g++/clang install, CMake, Python3, Pytest, GoogleTest 
+```bash
+# Install Python dependencies
+pip install sortedcontainers matplotlib numpy pytest
+
+# Build
+cmake -S . -B build/debug && cmake --build build/debug --parallel 4
+
+# Run simulation (uses config_template.json by default)
+./build/debug/MarketSimulator
+
+# Explore order book interactively
+python tools/visualize_book.py output/deltas.csv -i
+
+# Plot price discovery metrics
+python tools/visualize_timeseries.py output/ --analysis
+
+# Analyse adverse selection
+python -m tools.analyze_adverse_selection output/ --plot
+
+# Run all tests (debug + ASAN + Valgrind + Python)
+./build.sh
+```
+
+To customise the simulation, copy `config_template.json` to `config.json` and edit it. The simulator will prefer `config.json` when present. See [docs/usage.md](docs/usage.md) for the full configuration reference.
+
+---
+
+## Testing
+
+```bash
+# Debug build and tests only (faster)
+./build.sh --debug
+
+# Run specific C++ test suite
+./build/debug/unit_tests --gtest_filter="MatchingEngine*"
+
+# Python tests
+pytest tests/ -v
+
+# Cross-validation (C++ vs Python order book reconstruction)
+python -m tools.testing.harness --build-dir build/debug
+```
+
+The cross-validation harness runs C++ test scenarios with state export enabled, replays the delta logs in Python, and asserts that both implementations produce identical order book state at every checkpoint.
+
+---
+
+## Repository Structure
+
+```
+include/        C++ headers (main source)
+  agents/       NoiseTrader, MarketMaker, InformedTrader
+  exchange/     Order book types and matching engine
+  simulation/   Engine, scheduler, events, fair price
+  utils/        Strong type system
+src/            C++ implementations
+tests/          Google Test suites
+tools/          Python analysis and visualisation
+  visualizer/   Order book reconstruction library
+  testing/      Cross-validation harness
+docs/           Documentation and usage guides
+config_template.json  Example configuration
+```
+
+---
+
+## Documentation
+
+Full usage documentation for all tools and configuration options is in [docs/usage.md](docs/usage.md).
