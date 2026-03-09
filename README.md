@@ -116,19 +116,19 @@ Plots spread, midpoint, fair price, and pricing error over time to evaluate pric
 Measures how quote age at the time of fill correlates with adverse selection experienced by the market maker. Tests the stale-quote hypothesis: resting quotes that lag the fair price should suffer systematically worse outcomes.
 
 ```
-Adverse Selection Analysis (MM client_id=10)
+Adverse Selection Analysis (MM client_id=999)
 ============================================================
-Total MM fills: 1103 (maker only)
-  vs InformedTrader: 15 (1.4%)
-  vs NoiseTrader: 1088 (98.6%)
+Total MM fills: 23488 (maker only)
+  vs InformedTrader: 2697 (11.5%)
+  vs NoiseTrader: 20791 (88.5%)
 
 By Quote Age:
   Bucket         | Count | Mean Imm. AS | Med Imm. AS |  Mean AS@200 | % Informed
   -------------------------------------------------------------------------------
-  [0, 12)        |   263 |        -80.6 |       -41.0 |       -381.1 |       2.7%
-  [12, 31)       |   278 |       -639.7 |      -419.0 |       -719.3 |       2.2%
-  [31, 62)       |   284 |       -851.2 |      -590.0 |       -775.7 |       0.7%
-  [62, inf)      |   278 |      -1835.4 |      -992.5 |      -3659.0 |       0.0%
+  [0, 6)         |  5622 |          2.4 |         4.0 |         12.8 |       2.1%
+  [6, 10)        |  5208 |        -13.0 |       -12.0 |         -3.4 |      15.0%
+  [10, 15)       |  5977 |        -24.5 |       -25.0 |        -32.9 |      14.1%
+  [15, inf)      |  6681 |        -30.8 |       -33.0 |        -27.2 |      14.4%
 ```
 
 ---
