@@ -69,9 +69,10 @@ public:
     IFairPriceSource* fair_price_source() { return fair_price_.get(); }
 
     void enable_persistence(const std::filesystem::path& output_dir,
-                            Timestamp pnl_snapshot_interval = Timestamp{100}) {
-        data_collector_ =
-            std::make_unique<DataCollector>(output_dir, pnl_snapshot_interval);
+                            Timestamp pnl_snapshot_interval = Timestamp{100},
+                            WriterConfig writer_config = {}) {
+        data_collector_ = std::make_unique<DataCollector>(output_dir, pnl_snapshot_interval,
+                                                          writer_config);
         data_collector_->metadata().set_simulation_config(latency_);
     }
 

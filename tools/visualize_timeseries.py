@@ -22,6 +22,8 @@ from typing import Optional
 import matplotlib.pyplot as plt
 import numpy as np
 
+from tools.db import reader as db_reader
+
 
 @dataclass
 class MarketState:
@@ -84,6 +86,28 @@ def load_market_state(
         states = [states[i] for i in indices]
 
     return states
+
+
+def load_market_state_db(
+    run_id: str,
+    conn_str: str,
+    max_points: Optional[int] = None,
+) -> list[MarketState]:
+    """
+    Load market state data from the PostgreSQL backend for the given run_id.
+
+    Accepts the same max_points sampling parameter as load_market_state().
+    """
+    rows = db_reader.load_market_state(run_id, conn_str, max_points=max_points)
+    return [
+        MarketState(
+            timestamp=int(r["timestamp"]),
+            fair_price=int(r["fair_price"]),
+            best_bid=int(r["best_bid"]),
+            best_ask=int(r["best_ask"]),
+        )
+        for r in rows
+    ]
 
 
 def plot_timeseries(
@@ -385,7 +409,19 @@ def main() -> None:
     )
     parser.add_argument(
         "output_dir",
-        help="Path to simulation output directory (containing market_state.csv)",
+        nargs="?",
+        help="Path to simulation output directory (omit when using --run-id)",
+    )
+    parser.add_argument(
+        "--run-id",
+        metavar="UUID",
+        help="PostgreSQL run_id to read market state from (requires --conn)",
+    )
+    parser.add_argument(
+        "--conn",
+        metavar="DSN",
+        default="postgresql://localhost:5433/market_sim?host=/tmp",
+        help="PostgreSQL connection string (default: %(default)s)",
     )
     parser.add_argument(
         "--metric",
@@ -421,16 +457,20 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    output_dir = Path(args.output_dir)
-    market_state_path = output_dir / "market_state.csv"
-
-    if not market_state_path.exists():
-        print(f"Error: {market_state_path} not found")
-        return
+    use_db = args.run_id is not None
+    if not use_db and not args.output_dir:
+        parser.error("Provide either an output_dir or --run-id (with --conn)")
 
     # Load market state data
     print("Loading market state data...")
-    states = load_market_state(market_state_path, max_points=args.sample)
+    if use_db:
+        states = load_market_state_db(args.run_id, args.conn, max_points=args.sample)
+    else:
+        market_state_path = Path(args.output_dir) / "market_state.csv"
+        if not market_state_path.exists():
+            print(f"Error: {market_state_path} not found")
+            return
+        states = load_market_state(market_state_path, max_points=args.sample)
     print(f"  Loaded {len(states)} data points")
 
     if not states:

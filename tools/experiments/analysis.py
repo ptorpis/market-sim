@@ -13,6 +13,12 @@ from typing import Optional
 
 import numpy as np
 
+try:
+    import psycopg2
+    _PSYCOPG2_AVAILABLE = True
+except ImportError:
+    _PSYCOPG2_AVAILABLE = False
+
 # Must match the client_id assigned to the MarketMaker in config_builder.py.
 MM_CLIENT_ID = 999
 
@@ -81,6 +87,98 @@ def read_mm_passive_edge(output_dir: Path, mm_client_id: int = MM_CLIENT_ID) -> 
         raise ValueError(f"No passive MM trades found in {trades_path}")
 
     return float(np.mean(edges))
+
+
+def read_mm_passive_edge_db(run_id: str, conn_str: str,
+                            mm_client_id: int = MM_CLIENT_ID) -> float:
+    """
+    Compute the MM's average per-trade passive edge from the database.
+
+    Equivalent to read_mm_passive_edge() but reads from the trades table
+    instead of trades.csv.
+    """
+    if not _PSYCOPG2_AVAILABLE:
+        raise ImportError("psycopg2-binary is required for DB-backed analysis. "
+                          "Install with: pip install psycopg2-binary")
+
+    with psycopg2.connect(conn_str) as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT aggressor_side, buyer_id, seller_id, price, fair_price
+            FROM trades
+            WHERE run_id = %s AND (buyer_id = %s OR seller_id = %s)
+            """,
+            (run_id, mm_client_id, mm_client_id),
+        )
+        rows = cur.fetchall()
+
+    edges: list[float] = []
+    for aggressor_side, buyer_id, seller_id, price, fair_price in rows:
+        if buyer_id == mm_client_id and aggressor_side == "SELL":
+            counterparty = seller_id
+            mm_is_buyer = True
+        elif seller_id == mm_client_id and aggressor_side == "BUY":
+            counterparty = buyer_id
+            mm_is_buyer = False
+        else:
+            continue
+        if counterparty == 0:
+            continue
+        if mm_is_buyer:
+            edges.append(float(fair_price) - float(price))
+        else:
+            edges.append(float(price) - float(fair_price))
+
+    if not edges:
+        raise ValueError(f"No passive MM trades found in DB for run_id={run_id}")
+
+    return float(np.mean(edges))
+
+
+def read_mm_final_pnl_db(run_id: str, conn_str: str,
+                          mm_client_id: int = MM_CLIENT_ID) -> float:
+    """
+    Read MM final PnL from the database for the given run_id.
+
+    Queries the last pnl_snapshot row for mm_client_id, returning
+    cash + (long_position - short_position) * fair_price as mark-to-market PnL.
+
+    Args:
+        run_id: UUID string identifying the simulation run.
+        conn_str: PostgreSQL connection string.
+        mm_client_id: The market maker's client_id.
+
+    Returns:
+        Mark-to-market PnL at the last snapshot timestamp.
+
+    Raises:
+        ImportError: If psycopg2 is not installed.
+        ValueError: If no PnL snapshots are found for the given run_id and client_id.
+    """
+    if not _PSYCOPG2_AVAILABLE:
+        raise ImportError("psycopg2-binary is required for DB-backed analysis. "
+                          "Install with: pip install psycopg2-binary")
+
+    with psycopg2.connect(conn_str) as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT cash, long_position, short_position, fair_price
+            FROM pnl_snapshots
+            WHERE run_id = %s AND client_id = %s
+            ORDER BY timestamp DESC
+            LIMIT 1
+            """,
+            (run_id, mm_client_id),
+        )
+        row = cur.fetchone()
+
+    if row is None:
+        raise ValueError(
+            f"No PnL snapshots found for run_id={run_id}, client_id={mm_client_id}"
+        )
+
+    cash, long_pos, short_pos, fair_price = row
+    return float(cash) + (float(long_pos) - float(short_pos)) * float(fair_price)
 
 
 def find_breakeven_spread(pnl_by_half_spread: dict[int, float]) -> Optional[float]:

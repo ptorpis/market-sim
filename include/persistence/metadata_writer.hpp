@@ -98,7 +98,7 @@ public:
 
     void set_duration(Timestamp duration) { simulation_["duration"] = duration.value(); }
 
-    void write(const std::filesystem::path& output_dir) const {
+    [[nodiscard]] nlohmann::json as_json() const {
         nlohmann::json metadata;
         metadata["simulation"] = simulation_;
         metadata["instruments"] = instruments_;
@@ -106,12 +106,15 @@ public:
             metadata["fair_price"] = fair_price_;
         }
         metadata["agents"] = agents_;
+        return metadata;
+    }
 
+    void write(const std::filesystem::path& output_dir) const {
         std::ofstream file(output_dir / "metadata.json");
         if (!file.is_open()) {
             throw std::runtime_error("Failed to open metadata.json for writing");
         }
-        file << metadata.dump(2);
+        file << as_json().dump(2);
     }
 
 private:

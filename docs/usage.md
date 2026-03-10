@@ -226,6 +226,43 @@ Generated in `output_dir/`:
 | `pnl.csv` | Periodic P&L snapshots per agent |
 | `market_state.csv` | Fair price and best bid/ask at each timestamp |
 | `metadata.json` | Simulation configuration and agent details |
+| `run_id.txt` | UUID of the run written to PostgreSQL (only when backend is `postgres` or `both`) |
+
+### PostgreSQL Persistence
+
+Add a `"persistence"` section to the config to stream simulation output directly into PostgreSQL:
+
+```json
+{
+  "persistence": {
+    "backend": "postgres",
+    "connection_string": "postgresql://localhost:5433/market_sim?host=/tmp",
+    "batch_size": 1000
+  }
+}
+```
+
+| Field | Values | Description |
+|-------|--------|-------------|
+| `backend` | `"csv"` (default), `"postgres"`, `"both"` | Where to write output |
+| `connection_string` | DSN string | PostgreSQL connection string |
+| `batch_size` | integer | Rows per COPY batch (default: 1000) |
+
+Apply the schema once before first use:
+
+```bash
+psql -p 5433 -h /tmp -d market_sim -f tools/db/schema.sql
+```
+
+To backfill existing CSV run directories into the database:
+
+```bash
+python tools/db/import_csv.py \
+    --run-dir experiment_results/my_run \
+    --conn "postgresql://localhost:5433/market_sim?host=/tmp"
+```
+
+Once runs are in the database, all visualization and analysis tools can read them directly using `--run-id` and `--conn` instead of a file path.
 
 ---
 
@@ -272,11 +309,33 @@ python tools/visualize_book.py output/deltas.csv --animate --animate-interval 10
 python tools/visualize_book.py output/deltas.csv --animate --animate-levels 10
 ```
 
+#### Reading from PostgreSQL
+
+Pass `--run-id` instead of a file path to read directly from the database. The `--conn` flag defaults to the standard local instance.
+
+```bash
+# Show final state from DB run
+python tools/visualize_book.py --run-id <uuid>
+
+# Interactive mode from DB run
+python tools/visualize_book.py --run-id <uuid> -i
+
+# Show state at timestamp from DB run
+python tools/visualize_book.py --run-id <uuid> --at 1000
+
+# Animate from DB run with custom connection string
+python tools/visualize_book.py --run-id <uuid> \
+    --conn "postgresql://localhost:5433/market_sim?host=/tmp" \
+    --animate
+```
+
 ### Arguments
 
 | Argument | Short | Default | Description |
 |----------|-------|---------|-------------|
-| `deltas_file` | - | required | Path to deltas.csv file |
+| `deltas_file` | - | - | Path to deltas.csv file (omit when using `--run-id`) |
+| `--run-id` | - | - | PostgreSQL run UUID (alternative to `deltas_file`) |
+| `--conn` | - | `postgresql://localhost:5433/market_sim?host=/tmp` | PostgreSQL connection string |
 | `--at` | - | - | Show order book at specific timestamp |
 | `--interactive` | `-i` | - | Interactive mode |
 | `--plot` | - | - | Show depth chart |
@@ -340,11 +399,26 @@ python tools/visualize_timeseries.py output/ --analysis
 python tools/visualize_timeseries.py output/ --title "My Simulation"
 ```
 
+#### Reading from PostgreSQL
+
+```bash
+# Plot all metrics from DB run
+python tools/visualize_timeseries.py --run-id <uuid>
+
+# Analysis view with sampling from DB run
+python tools/visualize_timeseries.py --run-id <uuid> --analysis --sample 5000
+
+# Save to file from DB run
+python tools/visualize_timeseries.py --run-id <uuid> -o plot.png
+```
+
 ### Arguments
 
 | Argument | Short | Default | Description |
 |----------|-------|---------|-------------|
-| `output_dir` | - | required | Path to simulation output directory |
+| `output_dir` | - | - | Path to simulation output directory (omit when using `--run-id`) |
+| `--run-id` | - | - | PostgreSQL run UUID (alternative to `output_dir`) |
+| `--conn` | - | `postgresql://localhost:5433/market_sim?host=/tmp` | PostgreSQL connection string |
 | `--metric` | `-m` | all | Metrics to plot: mid, spread, fair, bid, ask, all |
 | `--analysis` | `-a` | - | Show comprehensive analysis view |
 | `--output` | `-o` | - | Save plot to file |
@@ -394,17 +468,32 @@ python -m tools.analyze_adverse_selection output/ --buckets 6
 python -m tools.analyze_adverse_selection output/ --no-csv
 ```
 
+#### Reading from PostgreSQL
+
+```bash
+# Basic analysis from DB run (auto-detects MM from stored config)
+python -m tools.analyze_adverse_selection --run-id <uuid>
+
+# Plot and save from DB run
+python -m tools.analyze_adverse_selection --run-id <uuid> --plot --output as_plot.png
+
+# Write per-fill CSV to explicit path (default is ./adverse_selection.csv in DB mode)
+python -m tools.analyze_adverse_selection --run-id <uuid> --csv results/fills.csv
+```
+
 ### Arguments
 
 | Argument | Short | Default | Description |
 |----------|-------|---------|-------------|
-| `output_dir` | - | required | Directory containing simulation output files |
-| `--mm-id` | - | auto | Market maker client_id (auto-detected from metadata.json if only one MM) |
+| `output_dir` | - | - | Directory containing simulation output files (omit when using `--run-id`) |
+| `--run-id` | - | - | PostgreSQL run UUID (alternative to `output_dir`) |
+| `--conn` | - | `postgresql://localhost:5433/market_sim?host=/tmp` | PostgreSQL connection string |
+| `--mm-id` | - | auto | Market maker client_id (auto-detected from metadata if only one MM) |
 | `--horizons` | - | 50 100 200 500 | Realized AS horizons in ticks |
 | `--buckets` | - | 4 | Number of quote age buckets (quartile-based) |
 | `--plot` | - | - | Show scatter and horizon plots |
 | `--output` | - | - | Save plot to file |
-| `--csv` | - | `OUTPUT_DIR/adverse_selection.csv` | Custom path for per-fill CSV |
+| `--csv` | - | `OUTPUT_DIR/adverse_selection.csv` or `./adverse_selection.csv` | Custom path for per-fill CSV |
 | `--no-csv` | - | - | Skip writing per-fill CSV |
 
 ### Key Metrics

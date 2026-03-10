@@ -26,6 +26,8 @@ from typing import Optional
 import matplotlib.pyplot as plt
 import numpy as np
 
+from tools.db import reader as db_reader
+
 
 # ---------------------------------------------------------------------------
 # Data structures
@@ -138,6 +140,136 @@ def load_fair_price_series(market_state_path: Path) -> tuple[list[int], list[int
             timestamps.append(int(row["timestamp"]))
             fair_prices.append(int(row["fair_price"]))
     return timestamps, fair_prices
+
+
+# ---------------------------------------------------------------------------
+# DB-backed data loading
+# ---------------------------------------------------------------------------
+
+
+def load_agent_map_db(run_id: str, conn_str: str) -> dict[int, AgentInfo]:
+    """Load agent map from the runs.config JSONB column in PostgreSQL."""
+    config = db_reader.load_run_config(run_id, conn_str)
+    agent_map: dict[int, AgentInfo] = {}
+    for agent in config.get("agents", []):
+        cid = int(agent["client_id"])
+        agent_map[cid] = AgentInfo(client_id=cid, agent_type=agent["type"])
+    return agent_map
+
+
+def build_order_lifecycle_db(run_id: str, conn_str: str) -> dict[int, int]:
+    """
+    Build order_id -> most recent ADD/MODIFY timestamp from the DB.
+
+    Mirrors build_order_lifecycle() but queries order_deltas directly.
+    """
+    lifecycle: dict[int, int] = {}
+    for delta in db_reader.iter_deltas(run_id, conn_str):
+        delta_type = delta["delta_type"]
+        if delta_type == "ADD":
+            lifecycle[int(delta["order_id"])] = int(delta["timestamp"])
+        elif delta_type == "MODIFY":
+            ts = int(delta["timestamp"])
+            lifecycle[int(delta["order_id"])] = ts
+            new_order_id = int(delta["new_order_id"])
+            if new_order_id != 0:
+                lifecycle[new_order_id] = ts
+    return lifecycle
+
+
+def load_fair_price_series_db(
+    run_id: str, conn_str: str
+) -> tuple[list[int], list[int]]:
+    """Load (timestamps, fair_prices) parallel lists from the market_state table."""
+    rows = db_reader.load_market_state(run_id, conn_str)
+    timestamps = [int(r["timestamp"]) for r in rows]
+    fair_prices = [int(r["fair_price"]) for r in rows]
+    return timestamps, fair_prices
+
+
+def compute_mm_fills_db(
+    run_id: str,
+    conn_str: str,
+    mm_client_id: int,
+    order_lifecycle: dict[int, int],
+    ts_list: list[int],
+    fp_list: list[int],
+    agent_map: dict[int, AgentInfo],
+    horizons: list[int],
+) -> list[MMFill]:
+    """
+    Compute MM maker fills from the PostgreSQL trades table.
+
+    Mirrors compute_mm_fills() but reads from the DB instead of trades.csv.
+    The returned list is identical in structure so all downstream analysis
+    functions work unchanged.
+    """
+    fills: list[MMFill] = []
+
+    for row in db_reader.load_trades(run_id, conn_str):
+        aggressor_side = row["aggressor_side"]
+        buyer_id = int(row["buyer_id"])
+        seller_id = int(row["seller_id"])
+        buyer_order_id = int(row["buyer_order_id"])
+        seller_order_id = int(row["seller_order_id"])
+
+        if aggressor_side == "BUY" and seller_id == mm_client_id:
+            mm_order_id = seller_order_id
+            mm_side = "SELL"
+            counterparty_id = buyer_id
+        elif aggressor_side == "SELL" and buyer_id == mm_client_id:
+            mm_order_id = buyer_order_id
+            mm_side = "BUY"
+            counterparty_id = seller_id
+        else:
+            continue
+
+        fill_timestamp = int(row["timestamp"])
+        fill_price = int(row["price"])
+        fair_price = int(row["fair_price"])
+        trade_id = int(row["trade_id"])
+
+        birth_ts = order_lifecycle.get(mm_order_id)
+        if birth_ts is None:
+            continue
+        quote_age = fill_timestamp - birth_ts
+
+        if mm_side == "BUY":
+            immediate_as = fair_price - fill_price
+        else:
+            immediate_as = fill_price - fair_price
+
+        realized_as: dict[int, Optional[int]] = {}
+        for h in horizons:
+            future_fp = lookup_fair_price_at(ts_list, fp_list, fill_timestamp + h)
+            if future_fp is not None:
+                if mm_side == "BUY":
+                    realized_as[h] = future_fp - fill_price
+                else:
+                    realized_as[h] = fill_price - future_fp
+            else:
+                realized_as[h] = None
+
+        cp_info = agent_map.get(counterparty_id)
+        counterparty_type = cp_info.agent_type if cp_info else "Unknown"
+
+        fills.append(
+            MMFill(
+                fill_timestamp=fill_timestamp,
+                trade_id=trade_id,
+                mm_order_id=mm_order_id,
+                mm_side=mm_side,
+                quote_age=quote_age,
+                fill_price=fill_price,
+                fair_price=fair_price,
+                immediate_as=immediate_as,
+                realized_as=realized_as,
+                counterparty_id=counterparty_id,
+                counterparty_type=counterparty_type,
+            )
+        )
+
+    return fills
 
 
 def lookup_fair_price_at(
@@ -584,7 +716,20 @@ def main() -> None:
     )
     parser.add_argument(
         "output_dir",
-        help="Directory containing trades.csv, deltas.csv, market_state.csv, metadata.json",
+        nargs="?",
+        help="Directory containing trades.csv, deltas.csv, market_state.csv, metadata.json"
+        " (omit when using --run-id)",
+    )
+    parser.add_argument(
+        "--run-id",
+        metavar="UUID",
+        help="PostgreSQL run_id to read data from (requires --conn)",
+    )
+    parser.add_argument(
+        "--conn",
+        metavar="DSN",
+        default="postgresql://localhost:5433/market_sim?host=/tmp",
+        help="PostgreSQL connection string (default: %(default)s)",
     )
     parser.add_argument(
         "--mm-id",
@@ -630,36 +775,43 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    output_dir = Path(args.output_dir)
+    use_db = args.run_id is not None
+    if not use_db and not args.output_dir:
+        parser.error("Provide either an output_dir or --run-id (with --conn)")
 
-    # Validate required files
-    required_files = {
-        "trades.csv": output_dir / "trades.csv",
-        "deltas.csv": output_dir / "deltas.csv",
-        "market_state.csv": output_dir / "market_state.csv",
-        "metadata.json": output_dir / "metadata.json",
-    }
-    for name, path in required_files.items():
-        if not path.exists():
-            print(f"Error: {path} not found")
-            return
+    output_dir: Optional[Path] = Path(args.output_dir) if args.output_dir else None
+    required_files: dict[str, Path] = {}
+    if output_dir is not None:
+        required_files = {
+            "trades.csv": output_dir / "trades.csv",
+            "deltas.csv": output_dir / "deltas.csv",
+            "market_state.csv": output_dir / "market_state.csv",
+            "metadata.json": output_dir / "metadata.json",
+        }
+        for path in required_files.values():
+            if not path.exists():
+                print(f"Error: {path} not found")
+                return
 
     # Load agent metadata
     print("Loading metadata...")
-    agent_map = load_agent_map(required_files["metadata.json"])
+    if use_db:
+        agent_map = load_agent_map_db(args.run_id, args.conn)
+    else:
+        agent_map = load_agent_map(required_files["metadata.json"])
 
     # Resolve MM client_id
     if args.mm_id is not None:
         mm_client_id = args.mm_id
         if mm_client_id not in agent_map:
-            print(f"Warning: client_id {mm_client_id} not found in metadata.json")
+            print(f"Warning: client_id {mm_client_id} not found in metadata")
     else:
         mm_ids = find_market_makers(agent_map)
         if len(mm_ids) == 1:
             mm_client_id = mm_ids[0]
             print(f"  Auto-detected MarketMaker client_id={mm_client_id}")
         elif len(mm_ids) == 0:
-            print("Error: No MarketMaker agents found in metadata.json")
+            print("Error: No MarketMaker agents found in metadata")
             return
         else:
             print(
@@ -669,26 +821,47 @@ def main() -> None:
             return
 
     # Build order lifecycle map
-    print("Building order lifecycle map from deltas.csv...")
-    order_lifecycle = build_order_lifecycle(required_files["deltas.csv"])
+    if use_db:
+        print("Building order lifecycle map from database...")
+        order_lifecycle = build_order_lifecycle_db(args.run_id, args.conn)
+    else:
+        print("Building order lifecycle map from deltas.csv...")
+        order_lifecycle = build_order_lifecycle(required_files["deltas.csv"])
     print(f"  Tracked {len(order_lifecycle)} orders")
 
     # Load fair price series for horizon lookups
-    print("Loading fair price series from market_state.csv...")
-    ts_list, fp_list = load_fair_price_series(required_files["market_state.csv"])
+    if use_db:
+        print("Loading fair price series from database...")
+        ts_list, fp_list = load_fair_price_series_db(args.run_id, args.conn)
+    else:
+        print("Loading fair price series from market_state.csv...")
+        ts_list, fp_list = load_fair_price_series(required_files["market_state.csv"])
     print(f"  Loaded {len(ts_list)} market state snapshots")
 
     # Compute MM fills
-    print("Computing MM fills from trades.csv...")
-    fills = compute_mm_fills(
-        required_files["trades.csv"],
-        mm_client_id,
-        order_lifecycle,
-        ts_list,
-        fp_list,
-        agent_map,
-        args.horizons,
-    )
+    if use_db:
+        print("Computing MM fills from database...")
+        fills = compute_mm_fills_db(
+            args.run_id,
+            args.conn,
+            mm_client_id,
+            order_lifecycle,
+            ts_list,
+            fp_list,
+            agent_map,
+            args.horizons,
+        )
+    else:
+        print("Computing MM fills from trades.csv...")
+        fills = compute_mm_fills(
+            required_files["trades.csv"],
+            mm_client_id,
+            order_lifecycle,
+            ts_list,
+            fp_list,
+            agent_map,
+            args.horizons,
+        )
     print(f"  Found {len(fills)} MM maker fills")
 
     if not fills:
@@ -700,7 +873,8 @@ def main() -> None:
 
     # Write per-fill CSV
     if not args.no_csv:
-        csv_path = Path(args.csv) if args.csv else output_dir / "adverse_selection.csv"
+        default_csv = (output_dir / "adverse_selection.csv") if output_dir else Path("adverse_selection.csv")
+        csv_path = Path(args.csv) if args.csv else default_csv
         write_per_fill_csv(fills, args.horizons, csv_path)
 
     # Plots

@@ -19,6 +19,7 @@ def run_simulation(
     binary: Path = Path("./build/debug/MarketSimulator"),
     *,
     timeout: int = 300,
+    db_connection_string: str | None = None,
 ) -> Path:
     """
     Run one simulation with the given config dict.
@@ -41,6 +42,16 @@ def run_simulation(
         RuntimeError: If the binary exits with a non-zero status code.
         subprocess.TimeoutExpired: If the run exceeds timeout seconds.
     """
+    if db_connection_string is not None:
+        config = {
+            **config,
+            "persistence": {
+                "backend": "postgres",
+                "connection_string": db_connection_string,
+                "batch_size": 50000,
+            },
+        }
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
     with tempfile.NamedTemporaryFile(
@@ -69,3 +80,11 @@ def run_simulation(
         )
 
     return output_dir
+
+
+def read_run_id(output_dir: Path) -> str | None:
+    """Return the run_id UUID written by the simulator, or None if not present."""
+    run_id_path = output_dir / "run_id.txt"
+    if not run_id_path.exists():
+        return None
+    return run_id_path.read_text(encoding="utf-8").strip()

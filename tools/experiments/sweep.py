@@ -13,10 +13,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
+from tqdm import tqdm
 
-from .analysis import read_mm_passive_edge, MM_CLIENT_ID
+from .analysis import read_mm_passive_edge, read_mm_passive_edge_db, MM_CLIENT_ID
 from .config_builder import build_gm_config
-from .runner import run_simulation
+from .runner import read_run_id, run_simulation
 
 
 def parameter_grid(**param_lists: list) -> list[dict]:
@@ -41,22 +42,43 @@ def _run_one(
     binary: Path,
     timeout: int,
     skip_existing: bool,
+    db_connection_string: str | None,
 ) -> dict:
     """
     Execute or recover one parameter combination.
 
-    If skip_existing=True and pnl.csv already exists in run_dir, the
-    simulation is skipped and the existing results are read back instead.
+    In CSV mode: skip if trades.csv exists; read edge from CSV.
+    In DB mode: skip if run_id.txt exists; read edge from DB.
     """
+    if db_connection_string is not None:
+        run_id_path = run_dir / "run_id.txt"
+        if skip_existing and run_id_path.exists():
+            run_id = read_run_id(run_dir)
+            edge = read_mm_passive_edge_db(run_id, db_connection_string, MM_CLIENT_ID)
+            return {**params, "mm_avg_passive_edge": edge, "output_dir": "",
+                    "run_id": run_id}
+        config = build_gm_config(**params)
+        run_simulation(config, run_dir, binary, timeout=timeout,
+                       db_connection_string=db_connection_string)
+        run_id = read_run_id(run_dir)
+        edge = read_mm_passive_edge_db(run_id, db_connection_string, MM_CLIENT_ID)
+        return {**params, "mm_avg_passive_edge": edge, "output_dir": "",
+                "run_id": run_id}
+
     trades_path = run_dir / "trades.csv"
     if skip_existing and trades_path.exists():
         edge = read_mm_passive_edge(run_dir, MM_CLIENT_ID)
-        return {**params, "mm_avg_passive_edge": edge, "output_dir": str(run_dir)}
+        run_id = read_run_id(run_dir)
+        return {**params, "mm_avg_passive_edge": edge, "output_dir": str(run_dir),
+                "run_id": run_id}
 
     config = build_gm_config(**params)
-    run_simulation(config, run_dir, binary, timeout=timeout)
+    run_simulation(config, run_dir, binary, timeout=timeout,
+                   db_connection_string=db_connection_string)
     edge = read_mm_passive_edge(run_dir, MM_CLIENT_ID)
-    return {**params, "mm_avg_passive_edge": edge, "output_dir": str(run_dir)}
+    run_id = read_run_id(run_dir)
+    return {**params, "mm_avg_passive_edge": edge, "output_dir": str(run_dir),
+            "run_id": run_id}
 
 
 def run_sweep(
@@ -68,6 +90,7 @@ def run_sweep(
     timeout: int = 300,
     skip_existing: bool = True,
     verbose: bool = True,
+    db_connection_string: str | None = None,
 ) -> pd.DataFrame:
     """
     Run a parameter grid of simulations and return aggregated results.
@@ -89,8 +112,8 @@ def run_sweep(
 
     Returns:
         DataFrame with one row per run; columns = all params + mm_avg_passive_edge
-        + output_dir. Rows are in completion order (not submission order).
-        Failed runs have mm_avg_passive_edge=NaN.
+        + output_dir + run_id (when DB backend is active). Rows are in completion
+        order (not submission order). Failed runs have mm_avg_passive_edge=NaN.
     """
     results_dir.mkdir(parents=True, exist_ok=True)
 
@@ -98,27 +121,29 @@ def run_sweep(
     with ThreadPoolExecutor(max_workers=n_workers) as pool:
         for i, params in enumerate(param_grid):
             run_dir = results_dir / f"run_{i:05d}"
-            future = pool.submit(_run_one, params, run_dir, binary, timeout, skip_existing)
+            future = pool.submit(_run_one, params, run_dir, binary, timeout,
+                                 skip_existing, db_connection_string)
             futures[future] = (i, params)
 
         rows = []
-        completed = 0
-        for future in as_completed(futures):
-            completed += 1
+        pbar = tqdm(as_completed(futures), total=len(param_grid), disable=not verbose)
+        for future in pbar:
             run_idx, params = futures[future]
             try:
                 row = future.result()
                 rows.append(row)
                 if verbose:
-                    print(
-                        f"[{completed}/{len(param_grid)}] run_{run_idx:05d} done"
-                        f" — mm_passive_edge={row['mm_avg_passive_edge']:.2f}"
+                    pbar.set_postfix(
+                        run=f"run_{run_idx:05d}",
+                        edge=f"{row['mm_avg_passive_edge']:.2f}",
                     )
             except Exception as exc:  # noqa: BLE001
                 if verbose:
-                    print(f"[{completed}/{len(param_grid)}] run_{run_idx:05d} FAILED: {exc}")
+                    pbar.set_postfix(run=f"run_{run_idx:05d}", status="FAILED")
+                    tqdm.write(f"run_{run_idx:05d} FAILED: {exc}")
                 rows.append(
-                    {**params, "mm_avg_passive_edge": float("nan"), "output_dir": ""}
+                    {**params, "mm_avg_passive_edge": float("nan"), "output_dir": "",
+                     "run_id": None}
                 )
 
     return pd.DataFrame(rows)

@@ -205,6 +205,36 @@ inline void from_json(const nlohmann::json& j, SimulationConfig& c) {
         }
     }
 
+    if (j.contains("persistence")) {
+        const auto& p = j.at("persistence");
+        if (!p.is_object()) {
+            throw std::runtime_error("'persistence' must be a JSON object");
+        }
+        if (p.contains("backend")) {
+            const auto& backend = p.at("backend").get<std::string>();
+            if (backend == "csv") {
+                c.persistence.backend = PersistenceBackend::CSV;
+            } else if (backend == "postgres") {
+                c.persistence.backend = PersistenceBackend::Postgres;
+            } else if (backend == "both") {
+                c.persistence.backend = PersistenceBackend::Both;
+            } else {
+                throw std::runtime_error("Unknown persistence backend: " + backend +
+                                         ". Expected 'csv', 'postgres', or 'both'.");
+            }
+        }
+        if (p.contains("connection_string")) {
+            c.persistence.connection_string = p.at("connection_string").get<std::string>();
+        }
+        if (p.contains("batch_size")) {
+            const auto batch = get_uint64(p, "batch_size");
+            if (batch > static_cast<std::uint64_t>(std::numeric_limits<int>::max())) {
+                throw std::runtime_error("'batch_size' exceeds maximum allowed value");
+            }
+            c.persistence.batch_size = static_cast<int>(batch);
+        }
+    }
+
     if (j.contains("instruments")) {
         const auto& instruments = j.at("instruments");
         if (!instruments.is_array()) {

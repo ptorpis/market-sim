@@ -16,6 +16,22 @@ FetchContent_Declare(json
 )
 FetchContent_MakeAvailable(json)
 
+find_package(PostgreSQL REQUIRED)
+
+FetchContent_Declare(libpqxx
+    GIT_REPOSITORY https://github.com/jtv/libpqxx.git
+    GIT_TAG        7.9.2
+    GIT_SHALLOW    TRUE
+)
+set(SKIP_BUILD_TEST ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(libpqxx)
+# Suppress warnings from libpqxx headers and sources (third-party code)
+get_target_property(_pqxx_includes pqxx INTERFACE_INCLUDE_DIRECTORIES)
+set_target_properties(pqxx PROPERTIES
+    INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${_pqxx_includes}"
+)
+target_compile_options(pqxx PRIVATE -Wno-maybe-uninitialized)
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -133,7 +149,7 @@ add_library(SimCore
 )
 
 target_include_directories(SimCore PUBLIC ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(SimCore PUBLIC nlohmann_json::nlohmann_json)
+target_link_libraries(SimCore PUBLIC nlohmann_json::nlohmann_json libpqxx::pqxx)
 
 # ==========================
 # Main executable

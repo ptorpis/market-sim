@@ -41,3 +41,5 @@ backlog/
 
 experiment_results/
 results/
+
+.claude/

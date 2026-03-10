@@ -1,6 +1,7 @@
 #pragma once
 
 #include "exchange/types.hpp"
+#include "persistence/writer_config.hpp"
 #include "utils/types.hpp"
 
 #include <filesystem>
@@ -179,6 +180,7 @@ struct SimulationConfig {
     Timestamp duration{1000};
     std::filesystem::path output_dir{"./output"};
     Timestamp pnl_snapshot_interval{100};
+    WriterConfig persistence;
     std::vector<InstrumentID> instruments;
     FairPriceModelConfig fair_price;
     std::uint64_t fair_price_seed{0};

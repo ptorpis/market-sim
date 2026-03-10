@@ -12,7 +12,8 @@
 void run_from_config(const SimulationConfig& config) {
     SimulationEngine sim(config.latency);
 
-    sim.enable_persistence(config.output_dir, config.pnl_snapshot_interval);
+    sim.enable_persistence(config.output_dir, config.pnl_snapshot_interval,
+                           config.persistence);
 
     for (const auto& instrument : config.instruments) {
         sim.add_instrument(instrument);

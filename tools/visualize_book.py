@@ -57,6 +57,7 @@ import seaborn as sns
 
 
 from tools.visualizer.order_book import Side, OrderBook
+from tools.db import reader as db_reader
 
 
 @dataclass
@@ -225,12 +226,68 @@ class DeltaIndex:
         return self.timestamps.index(closest)
 
 
+class DBDeltaIndex:
+    """
+    In-memory delta index backed by a PostgreSQL run.
+
+    Loads all deltas for the given run_id at construction time and groups them
+    by timestamp, providing the same navigation interface as DeltaIndex so
+    that the rest of the visualizer works without modification.
+    """
+
+    def __init__(self, run_id: str, conn_str: str):
+        print("Loading deltas from database...")
+        all_deltas = db_reader.load_all_deltas(run_id, conn_str)
+
+        self.timestamps: list[int] = []
+        self._groups: list[list[dict]] = []
+
+        for delta in all_deltas:
+            ts = int(delta["timestamp"])
+            if not self.timestamps or self.timestamps[-1] != ts:
+                self.timestamps.append(ts)
+                self._groups.append([])
+            self._groups[-1].append(delta)
+
+    def __len__(self) -> int:
+        return len(self.timestamps)
+
+    def read_deltas_at_index(self, idx: int) -> list[dict]:
+        if idx < 0 or idx >= len(self.timestamps):
+            return []
+        return list(self._groups[idx])
+
+    def read_deltas_up_to_index(self, idx: int):
+        if idx < 0 or idx >= len(self.timestamps):
+            return
+        for i in range(idx + 1):
+            yield from self._groups[i]
+
+    def find_timestamp_index(self, target_ts: int) -> int:
+        if target_ts in self.timestamps:
+            return self.timestamps.index(target_ts)
+        closest = min(self.timestamps, key=lambda t: abs(t - target_ts))
+        return self.timestamps.index(closest)
+
+
 def reconstruct_at(deltas_path: str, target_timestamp: int) -> OrderBook:
     """Reconstruct the order book state at a specific timestamp by replaying deltas."""
     book = OrderBook()
     for delta in read_deltas(deltas_path):
         if int(delta["timestamp"]) > target_timestamp:
             break
+        book.apply_delta(delta)
+    return book
+
+
+def reconstruct_at_from_index(
+    index: DeltaIndex | DBDeltaIndex,
+    target_timestamp: int,
+) -> OrderBook:
+    """Reconstruct the order book up to target_timestamp using a pre-built index."""
+    ts_idx = index.find_timestamp_index(target_timestamp)
+    book = OrderBook()
+    for delta in index.read_deltas_up_to_index(ts_idx):
         book.apply_delta(delta)
     return book
 
@@ -257,16 +314,23 @@ def print_commands() -> None:
     print("  h                    - Print commands available")
 
 
-def interactive_mode(deltas_path: str, levels: Optional[int]) -> None:
+def interactive_mode(
+    deltas_path: Optional[str],
+    levels: Optional[int],
+    index: Optional[DeltaIndex | DBDeltaIndex] = None,
+) -> None:
     """
     Run an interactive session for navigating the order book through time.
 
     Builds a lightweight index on startup, then allows stepping forward/backward
     through timestamps or jumping to specific points. Uses streaming reads and
     reverse deltas to minimize memory usage.
+
+    Pass a pre-built index (e.g. DBDeltaIndex) to skip index construction.
     """
-    print("Building index...")
-    index = DeltaIndex(deltas_path)
+    if index is None:
+        print("Building index...")
+        index = DeltaIndex(deltas_path)
     if len(index) == 0:
         print("No deltas found in file.")
         return
@@ -423,11 +487,12 @@ def plot_depth(book: OrderBook, output_path: Optional[str] = None) -> None:
 
 
 def animate_book(
-    deltas_path: str,
+    deltas_path: Optional[str],
     output_path: Optional[str] = None,
     interval: int = 50,
     step: int = 1,
     tower_levels: int = 15,
+    index: Optional[DeltaIndex | DBDeltaIndex] = None,
 ) -> None:
     """
     Animate the order book depth and tower charts over time.
@@ -437,18 +502,20 @@ def animate_book(
     or heavy computation during drawing.
 
     Args:
-        deltas_path: Path to deltas.csv.
+        deltas_path: Path to deltas.csv (unused when index is provided).
         output_path: Save to file (mp4/gif) instead of showing interactively.
         interval: Milliseconds between frames.
         step: Sample every Nth timestamp (higher = fewer frames, faster export).
         tower_levels: Max price levels shown per side in the tower chart.
+        index: Pre-built index (e.g. DBDeltaIndex); built from deltas_path if None.
     """
     sns.set_theme(style="darkgrid")
     bid_color = sns.color_palette("deep")[2]
     ask_color = sns.color_palette("deep")[3]
 
-    print("Building index...")
-    index = DeltaIndex(deltas_path)
+    if index is None:
+        print("Building index...")
+        index = DeltaIndex(deltas_path)
     if len(index) == 0:
         print("No deltas found in file.")
         return
@@ -538,9 +605,24 @@ def parse_levels(value: str) -> int | None:
 def main() -> None:
     """Entry point for the order book visualizer CLI."""
     parser = argparse.ArgumentParser(
-        description="Visualize order book from market-sim deltas.csv"
+        description="Visualize order book from market-sim deltas.csv or a PostgreSQL run"
     )
-    parser.add_argument("deltas_file", help="Path to deltas.csv file")
+    parser.add_argument(
+        "deltas_file",
+        nargs="?",
+        help="Path to deltas.csv file (omit when using --run-id)",
+    )
+    parser.add_argument(
+        "--run-id",
+        metavar="UUID",
+        help="PostgreSQL run_id to read deltas from (requires --conn)",
+    )
+    parser.add_argument(
+        "--conn",
+        metavar="DSN",
+        default="postgresql://localhost:5433/market_sim?host=/tmp",
+        help="PostgreSQL connection string (default: %(default)s)",
+    )
     parser.add_argument(
         "--at",
         type=int,
@@ -603,6 +685,17 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # Validate source selection
+    use_db = args.run_id is not None
+    if not use_db and not args.deltas_file:
+        parser.error("Provide either a deltas_file or --run-id (with --conn)")
+
+    # Build index once; reused across all modes
+    if use_db:
+        index: DeltaIndex | DBDeltaIndex = DBDeltaIndex(args.run_id, args.conn)
+    else:
+        index = None  # built lazily inside each function for file mode
+
     if args.animate or args.animate_output:
         animate_book(
             args.deltas_file,
@@ -610,23 +703,36 @@ def main() -> None:
             interval=args.animate_interval,
             step=args.animate_step,
             tower_levels=args.animate_levels,
+            index=index,
         )
     elif args.interactive:
-        interactive_mode(args.deltas_file, args.levels)
+        interactive_mode(args.deltas_file, args.levels, index=index)
     elif args.at is not None:
-        book = reconstruct_at(args.deltas_file, args.at)
+        if use_db:
+            book = reconstruct_at_from_index(index, args.at)
+        else:
+            book = reconstruct_at(args.deltas_file, args.at)
         book.print_book(args.levels)
         if args.plot or args.plot_output:
             plot_depth(book, args.plot_output)
     else:
-        timestamps = get_all_timestamps(args.deltas_file)
-        if timestamps:
-            book = reconstruct_at(args.deltas_file, timestamps[-1])
+        if use_db:
+            if len(index) == 0:
+                print("No deltas found for this run.")
+                return
+            book = reconstruct_at_from_index(index, index.timestamps[-1])
             book.print_book(args.levels)
             if args.plot or args.plot_output:
                 plot_depth(book, args.plot_output)
         else:
-            print("No deltas found in file.")
+            timestamps = get_all_timestamps(args.deltas_file)
+            if timestamps:
+                book = reconstruct_at(args.deltas_file, timestamps[-1])
+                book.print_book(args.levels)
+                if args.plot or args.plot_output:
+                    plot_depth(book, args.plot_output)
+            else:
+                print("No deltas found in file.")
 
 
 if __name__ == "__main__":
