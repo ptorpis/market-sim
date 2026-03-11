@@ -32,6 +32,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
+
+sns.set_theme(style="whitegrid", palette="tab10", font_scale=1.1)
 
 from .analysis import find_breakeven_spread, roll_spread_estimator
 from .config_builder import build_gm_config
@@ -52,10 +55,10 @@ HALF_SPREAD_VALUES = [5, 10, 20, 40, 80, 150, 175, 200, 225, 300]
 N_REPLICATES = 10
 
 N_TOTAL_TRADERS = 20
-DURATION = 500_000
+DURATION = 200_000
 PNL_SNAPSHOT_INTERVAL = 1_000
 
-DB_CONN = "postgresql://localhost:5433/market_sim?host=/tmp"
+DB_CONN = "postgresql://localhost:5434/market_sim?host=/tmp"
 
 
 def build_param_grid(seed_offset: int = 0) -> list[dict]:
@@ -130,19 +133,19 @@ def compute_ci(results: pd.DataFrame) -> pd.DataFrame:
 
 def plot_breakeven_vs_pi(breakevens: pd.DataFrame, plots_dir: Path) -> None:
     plots_dir.mkdir(parents=True, exist_ok=True)
+
+    data = breakevens.dropna(subset=["breakeven_half_spread"]).copy()
+    data["σ"] = data["sigma"].map(lambda s: f"σ={s}")
+
     fig, ax = plt.subplots(figsize=(8, 5))
-
-    for sigma, group in breakevens.groupby("sigma"):
-        group = group.sort_values("pi").dropna(subset=["breakeven_half_spread"])
-        if group.empty:
-            continue
-        ax.plot(group["pi"], group["breakeven_half_spread"], marker="o", label=f"σ={sigma}")
-
-    ax.set_xlabel("π (informed trader fraction)")
+    sns.lineplot(
+        data=data, x="pi", y="breakeven_half_spread",
+        hue="σ", marker="o", ax=ax,
+    )
+    ax.set_xlabel("π  (informed trader fraction)")
     ax.set_ylabel("Equilibrium half-spread (price units)")
-    ax.set_title("GM Replication v2: Equilibrium Spread vs π")
-    ax.legend()
-    ax.grid(True, alpha=0.3)
+    ax.set_title("GM Replication v2 — Equilibrium Spread vs π")
+    ax.legend(title=None)
 
     path = plots_dir / "eq_spread_vs_pi.png"
     fig.savefig(path, dpi=150, bbox_inches="tight")
@@ -152,19 +155,19 @@ def plot_breakeven_vs_pi(breakevens: pd.DataFrame, plots_dir: Path) -> None:
 
 def plot_breakeven_vs_sigma(breakevens: pd.DataFrame, plots_dir: Path) -> None:
     plots_dir.mkdir(parents=True, exist_ok=True)
+
+    data = breakevens.dropna(subset=["breakeven_half_spread"]).copy()
+    data["π"] = data["pi"].map(lambda p: f"π={p:.2f}")
+
     fig, ax = plt.subplots(figsize=(8, 5))
-
-    for pi, group in breakevens.groupby("pi"):
-        group = group.sort_values("sigma").dropna(subset=["breakeven_half_spread"])
-        if group.empty:
-            continue
-        ax.plot(group["sigma"], group["breakeven_half_spread"], marker="o", label=f"π={pi:.2f}")
-
-    ax.set_xlabel("σ (GBM volatility)")
+    sns.lineplot(
+        data=data, x="sigma", y="breakeven_half_spread",
+        hue="π", marker="o", ax=ax,
+    )
+    ax.set_xlabel("σ  (GBM volatility)")
     ax.set_ylabel("Equilibrium half-spread (price units)")
-    ax.set_title("GM Replication v2: Equilibrium Spread vs σ")
-    ax.legend()
-    ax.grid(True, alpha=0.3)
+    ax.set_title("GM Replication v2 — Equilibrium Spread vs σ")
+    ax.legend(title=None)
 
     path = plots_dir / "eq_spread_vs_sigma.png"
     fig.savefig(path, dpi=150, bbox_inches="tight")
@@ -180,22 +183,23 @@ def plot_pnl_curves(results: pd.DataFrame, plots_dir: Path) -> None:
     plots_dir.mkdir(parents=True, exist_ok=True)
     agg = compute_ci(results)
 
+    palette = sns.color_palette("tab10", n_colors=len(agg["pi"].unique()))
+
     for sigma, sigma_group in agg.groupby("sigma"):
-        fig, ax = plt.subplots(figsize=(8, 5))
-        for pi, pi_group in sigma_group.groupby("pi"):
+        fig, ax = plt.subplots(figsize=(9, 5))
+        for (pi, pi_group), color in zip(sigma_group.groupby("pi"), palette):
             pi_group = pi_group.sort_values("half_spread")
             xs = pi_group["half_spread"].values
             ys = pi_group["mean"].values
             ci = pi_group["ci95"].values
-            (line,) = ax.plot(xs, ys, marker="o", label=f"π={pi:.2f}")
-            ax.fill_between(xs, ys - ci, ys + ci, alpha=0.15, color=line.get_color())
+            ax.plot(xs, ys, marker="o", color=color, label=f"π={pi:.2f}")
+            ax.fill_between(xs, ys - ci, ys + ci, alpha=0.15, color=color)
 
-        ax.axhline(y=0, color="black", linestyle="--", linewidth=0.8)
+        ax.axhline(y=0, color="black", linestyle="--", linewidth=0.9)
         ax.set_xlabel("Half-spread (price units)")
         ax.set_ylabel("MM avg passive edge (price units)")
-        ax.set_title(f"MM Passive Edge vs Half-Spread (σ={sigma}) — 95% CI bands")
-        ax.legend()
-        ax.grid(True, alpha=0.3)
+        ax.set_title(f"MM Passive Edge vs Half-Spread  (σ={sigma})  — 95% CI")
+        ax.legend(title=None)
 
         sigma_tag = f"{sigma:.4f}".replace(".", "_")
         path = plots_dir / f"pnl_curves_sigma{sigma_tag}.png"
