@@ -170,7 +170,6 @@ def _load_run(mo, pd, Path, OrderBook, archive_dir_input, run_table, _subset):
 
     _df = pd.read_parquet(_path)
 
-    # Group rows by timestamp (parquet is already sorted)
     _groups: dict[int, list] = {}
     for _rd in _df.itertuples(index=False):
         _ts = int(_rd.timestamp)
@@ -180,7 +179,6 @@ def _load_run(mo, pd, Path, OrderBook, archive_dir_input, run_table, _subset):
 
     _timestamps = sorted(_groups.keys())
 
-    # Single O(N) forward pass
     _book  = OrderBook()
     _frames: list[tuple[int, list, list]] = []
     _snaps: list[dict] = []
@@ -192,7 +190,6 @@ def _load_run(mo, pd, Path, OrderBook, archive_dir_input, run_table, _subset):
         _bid, _ask = _book.get_full_depth()
         _frames.append((_ts, list(_bid), list(_ask)))
 
-        # Registry snapshot: order_id → {side, price, client_id, quantity, added}
         _reg: dict[int, dict] = {}
         for _price, _queue in _book.bids.items():
             for _o in _queue:
@@ -252,7 +249,7 @@ def _summary(mo, loaded_run, n_ts, t_start, t_end):
 
 
 # ---------------------------------------------------------------------------
-# Navigation state — source of truth for the current timestamp index
+# Navigation state
 # ---------------------------------------------------------------------------
 
 @app.cell
@@ -262,7 +259,7 @@ def _nav_state(mo):
 
 
 # ---------------------------------------------------------------------------
-# Navigation controls: prev / next / jump
+# Navigation + levels control bar
 # ---------------------------------------------------------------------------
 
 @app.cell
@@ -286,229 +283,160 @@ def _nav_controls(mo, n_ts, frames, get_idx, set_idx):
          mo.md(f"**{get_idx()} / {n_ts - 1}  —  t = {_cur_ts}**")],
         justify="start",
     )
-    return ()
 
 
 # ---------------------------------------------------------------------------
-# Ladder levels control (d command)
-# ---------------------------------------------------------------------------
-
-@app.cell
-def _levels_ctrl(mo):
-    levels_input = mo.ui.number(
-        start=1, stop=50, step=1, value=12, label="Ladder levels (d)"
-    )
-    levels_input
-    return (levels_input,)
-
-
-# ---------------------------------------------------------------------------
-# Inspection controls: o / l / t
+# Depth chart + L2 book table side by side
 # ---------------------------------------------------------------------------
 
 @app.cell
-def _inspect_controls(mo):
-    order_id_input = mo.ui.number(
-        start=0, stop=10_000_000, step=1, value=0, label="Inspect order (o)"
-    )
-    level_side = mo.ui.radio(
-        options=["BUY", "SELL"], value="BUY", label="Level side (l)"
-    )
-    level_price = mo.ui.number(
-        start=0, stop=1_000_000, step=1, value=0, label="Level price (l)"
-    )
-    mo.vstack([
-        mo.md("## Inspect"),
-        mo.hstack([order_id_input, level_side, level_price], justify="start"),
-    ])
-    return order_id_input, level_side, level_price
-
-
-# ---------------------------------------------------------------------------
-# Inspection display
-# ---------------------------------------------------------------------------
-
-@app.cell
-def _inspect_display(
-    mo, pd, snapshots, get_idx, order_id_input, level_side, level_price
-):
-    _snap = snapshots[get_idx()]
-    _reg  = _snap["registry"]
-
-    def _level_df(orders):
-        return pd.DataFrame(orders, columns=["order_id", "client_id", "quantity"])
-
-    # --- Top of book (t) ---
-    _bb = max(_snap["bids"].keys()) if _snap["bids"] else None
-    _ba = min(_snap["asks"].keys()) if _snap["asks"] else None
-    _top_bid_df = _level_df(_snap["bids"].get(_bb, []))
-    _top_ask_df = _level_df(_snap["asks"].get(_ba, []))
-
-    _top_section = mo.vstack([
-        mo.md(f"**Top of Book (t)**"),
-        mo.md(f"Best Bid: `{_bb}`"),
-        mo.ui.table(_top_bid_df) if not _top_bid_df.empty else mo.md("_(empty)_"),
-        mo.md(f"Best Ask: `{_ba}`"),
-        mo.ui.table(_top_ask_df) if not _top_ask_df.empty else mo.md("_(empty)_"),
-    ])
-
-    # --- Order inspector (o) ---
-    _oid = int(order_id_input.value)
-    if _oid in _reg:
-        _o = _reg[_oid]
-        _order_section = mo.vstack([
-            mo.md(f"**Order {_oid}**"),
-            mo.ui.table(pd.DataFrame([_o])),
-        ])
-    else:
-        _order_section = mo.vstack([
-            mo.md(f"**Order {_oid}**"),
-            mo.md("_(not in book at this timestamp)_"),
-        ])
-
-    # --- Level inspector (l) ---
-    _side  = level_side.value
-    _price = int(level_price.value)
-    _lvl_orders = _snap["bids" if _side == "BUY" else "asks"].get(_price, [])
-    _lvl_df = _level_df(_lvl_orders)
-    _level_section = mo.vstack([
-        mo.md(f"**{_side} @ {_price} (l)**"),
-        mo.ui.table(_lvl_df) if not _lvl_df.empty else mo.md("_(no orders)_"),
-    ])
-
-    mo.hstack([_top_section, _order_section, _level_section], justify="start")
-    return ()
-
-
-# ---------------------------------------------------------------------------
-# Book plot: cumulative depth + ladder
-# ---------------------------------------------------------------------------
-
-@app.cell
-def _book_plot(
-    mo, plt, mticker, frames, get_idx, levels_input, BID_COLOR, ASK_COLOR
-):
+def _book_view(mo, plt, pd, frames, get_idx, BID_COLOR, ASK_COLOR):
     _ts, _bid_levels, _ask_levels = frames[get_idx()]
-    _n_levels = int(levels_input.value)
 
-    # Cumulative depth
-    _bid_prices_d = [p for p, _ in reversed(_bid_levels)]
+    # --- Cumulative depth data ---
+    _bid_prices = [p for p, _ in reversed(_bid_levels)]
     _bid_cum, _total = [], 0
     for _, _q in reversed(_bid_levels):
         _total += _q
         _bid_cum.append(_total)
     _bid_cum = list(reversed(_bid_cum))
 
-    _ask_prices_d = [p for p, _ in _ask_levels]
+    _ask_prices = [p for p, _ in _ask_levels]
     _ask_cum, _total = [], 0
     for _, _q in _ask_levels:
         _total += _q
         _ask_cum.append(_total)
 
-    # Ladder
-    _top_bids = dict(_bid_levels[:_n_levels])
-    _top_asks = dict(_ask_levels[:_n_levels])
-    _tower_prices   = sorted(_top_bids.keys() | _top_asks.keys())
-    _tower_bid_qtys = [_top_bids.get(p, 0) for p in _tower_prices]
-    _tower_ask_qtys = [_top_asks.get(p, 0) for p in _tower_prices]
-
     _best_bid = _bid_levels[0][0] if _bid_levels else None
     _best_ask = _ask_levels[0][0] if _ask_levels else None
     _mid    = ((_best_bid + _best_ask) / 2) if (_best_bid and _best_ask) else None
-    _spread = (_best_ask - _best_bid)       if (_best_bid and _best_ask) else None
+    _spread = (_best_ask - _best_bid)       if (_best_bid and _best_ask) else "—"
+    _mid_str = f"{_mid:.1f}" if _mid else "—"
 
-    _fig, (_ax_d, _ax_l) = plt.subplots(1, 2, figsize=(18, 7))
-    _title = f"t={_ts}"
-    if _mid:
-        _title += (
-            f"   Bid {_best_bid} / Ask {_best_ask}"
-            f"   Spread {_spread}   Mid {_mid:.1f}"
+    _fig, _ax = plt.subplots(figsize=(10, 6))
+    _ax.set_title(f"t={_ts}   Spread: {_spread}   Mid: {_mid_str}")
+    if _bid_prices:
+        _ax.fill_between(
+            _bid_prices, _bid_cum, step="post", alpha=0.35, color=BID_COLOR
         )
-    _fig.suptitle(_title, fontsize=12)
-
-    if _bid_prices_d:
-        _ax_d.fill_between(
-            _bid_prices_d, _bid_cum, step="post", alpha=0.35, color=BID_COLOR
-        )
-        _ax_d.step(
-            _bid_prices_d, _bid_cum, where="post",
+        _ax.step(
+            _bid_prices, _bid_cum, where="post",
             color=BID_COLOR, label="Bids", linewidth=1.5,
         )
-    if _ask_prices_d:
-        _ax_d.fill_between(
-            _ask_prices_d, _ask_cum, step="post", alpha=0.35, color=ASK_COLOR
+    if _ask_prices:
+        _ax.fill_between(
+            _ask_prices, _ask_cum, step="post", alpha=0.35, color=ASK_COLOR
         )
-        _ax_d.step(
-            _ask_prices_d, _ask_cum, where="post",
+        _ax.step(
+            _ask_prices, _ask_cum, where="post",
             color=ASK_COLOR, label="Asks", linewidth=1.5,
         )
     if _mid:
-        _ax_d.axvline(
+        _ax.axvline(
             _mid, color="white", linewidth=0.9,
             linestyle="--", label=f"Mid {_mid:.1f}",
         )
-    _ax_d.set_xlabel("Price")
-    _ax_d.set_ylabel("Cumulative Quantity")
-    _ax_d.set_title("Cumulative Depth")
-    _ax_d.legend()
+    _ax.set_xlabel("Price")
+    _ax.set_ylabel("Cumulative Quantity")
+    _ax.legend()
+    plt.tight_layout()
 
-    if _tower_prices:
-        _y = list(range(len(_tower_prices)))
-        _ax_l.barh(
-            _y, [-q for q in _tower_bid_qtys],
-            height=0.6, color=BID_COLOR, alpha=0.7, label="Bids",
-        )
-        _ax_l.barh(
-            _y, _tower_ask_qtys,
-            height=0.6, color=ASK_COLOR, alpha=0.7, label="Asks",
-        )
-        _ax_l.set_yticks(_y)
-        _ax_l.set_yticklabels(_tower_prices, fontsize=9)
-        _ax_l.axvline(0, color="white", linewidth=0.8)
-        _x_max = max(
-            max(_tower_bid_qtys, default=0),
-            max(_tower_ask_qtys, default=0),
-            1,
-        )
-        _ax_l.set_xlim(-_x_max * 1.15, _x_max * 1.15)
-        _ax_l.xaxis.set_major_formatter(
-            mticker.FuncFormatter(lambda x, _: str(int(abs(x))))
-        )
-        _ax_l.legend()
-    _ax_l.set_xlabel("Quantity")
-    _ax_l.set_ylabel("Price")
-    _ax_l.set_title(f"Order Ladder  (top {_n_levels} levels/side)")
+    # --- L2 tables ---
+    bid_table = mo.ui.table(
+        pd.DataFrame(_bid_levels, columns=["Price", "Qty"]),
+        selection="single",
+        label=f"Bids  (best: {_best_bid})",
+        show_column_summaries=False,
+        page_size=15,
+    )
+    ask_table = mo.ui.table(
+        pd.DataFrame(_ask_levels, columns=["Price", "Qty"]),
+        selection="single",
+        label=f"Asks  (best: {_best_ask})",
+        show_column_summaries=False,
+        page_size=15,
+    )
 
-    plt.tight_layout(rect=(0, 0, 1, 0.95))
-    mo.as_html(_fig)
-    return ()
+    mo.hstack([
+        mo.as_html(_fig),
+        mo.vstack([
+            mo.md(f"## Order Book"),
+            mo.hstack([bid_table, ask_table]),
+        ]),
+    ])
+    return bid_table, ask_table
 
 
 # ---------------------------------------------------------------------------
-# Timeline: best bid / ask over all timestamps, with current position marker
+# Orders at selected level (click a row in the L2 table above)
 # ---------------------------------------------------------------------------
 
 @app.cell
-def _timeline(mo, plt, frames, get_idx, BID_COLOR, ASK_COLOR):
-    _all_ts  = [f[0] for f in frames]
-    _all_bid = [f[1][0][0] if f[1] else None for f in frames]
-    _all_ask = [f[2][0][0] if f[2] else None for f in frames]
-    _cur_ts  = _all_ts[get_idx()]
+def _level_orders(mo, pd, snapshots, get_idx, bid_table, ask_table):
+    _snap = snapshots[get_idx()]
 
-    _fig2, _ax = plt.subplots(figsize=(18, 3))
-    _ax.plot(_all_ts, _all_bid, color=BID_COLOR, linewidth=0.8, label="Best bid")
-    _ax.plot(_all_ts, _all_ask, color=ASK_COLOR, linewidth=0.8, label="Best ask")
-    _ax.axvline(
-        _cur_ts, color="white", linewidth=1.2,
-        linestyle="--", label=f"t={_cur_ts}",
+    _side  = None
+    _price = None
+
+    _bid_sel = bid_table.value
+    _ask_sel = ask_table.value
+
+    if _bid_sel is not None and not _bid_sel.empty:
+        _price = int(_bid_sel.iloc[0]["Price"])
+        _side  = "BUY"
+    elif _ask_sel is not None and not _ask_sel.empty:
+        _price = int(_ask_sel.iloc[0]["Price"])
+        _side  = "SELL"
+
+    if _price is not None:
+        _orders = _snap["bids" if _side == "BUY" else "asks"].get(_price, [])
+        _df = pd.DataFrame(_orders, columns=["order_id", "client_id", "quantity"])
+        level_table = mo.ui.table(_df, selection="single", show_column_summaries=False)
+        _out = mo.vstack([mo.md(f"### {_side} @ {_price}"), level_table])
+    else:
+        level_table = mo.ui.table(
+            pd.DataFrame(columns=["order_id", "client_id", "quantity"]),
+            selection="single",
+            show_column_summaries=False,
+        )
+        _out = mo.md("_Click a price level in the book above to inspect its orders._")
+    _out
+    return (level_table,)
+
+
+# ---------------------------------------------------------------------------
+# Order inspector by ID (o command)
+# ---------------------------------------------------------------------------
+
+@app.cell
+def _order_inspector(mo):
+    order_id_input = mo.ui.number(
+        start=0, stop=10_000_000, step=1, value=0,
+        label="Inspect order by ID (o)",
     )
-    _ax.set_xlabel("Timestamp")
-    _ax.set_ylabel("Price")
-    _ax.set_title("Best Bid / Ask Over Time")
-    _ax.legend(fontsize=8)
-    plt.tight_layout()
-    mo.as_html(_fig2)
-    return ()
+    order_id_input
+    return (order_id_input,)
+
+
+@app.cell
+def _order_display(mo, pd, snapshots, get_idx, order_id_input, level_table):
+    _reg = snapshots[get_idx()]["registry"]
+
+    _level_sel = level_table.value
+    if _level_sel is not None and not _level_sel.empty:
+        _oid = int(_level_sel.iloc[0]["order_id"])
+    else:
+        mo.stop(
+            order_id_input.value is None,
+            mo.md("_Enter an order ID to inspect._"),
+        )
+        _oid = int(order_id_input.value)
+
+    mo.stop(
+        _oid not in _reg,
+        mo.md(f"_Order {_oid} not in book at this timestamp._"),
+    )
+    mo.ui.table(pd.DataFrame([_reg[_oid]]))
 
 
 if __name__ == "__main__":

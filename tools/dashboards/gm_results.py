@@ -252,7 +252,7 @@ def _explorer_sigma_dd(mo, sigma_vals):
 def _explorer_pi_dd(mo, pi_vals):
     explorer_pi_dd = mo.ui.dropdown(
         options={f"π={p:.2f}": p for p in pi_vals},
-        value=f"π={pi_vals[0]}",
+        value=f"π={pi_vals[0]:.2f}",
         label="π",
     )
     return (explorer_pi_dd,)
